@@ -31,23 +31,24 @@ tests/fixtures/<provider>/  recorded real responses; adapter tests parse these o
 Adapter rules: plain GET first; empty `dishes` (not an exception) when closed; only
 published macro values; record the `basis` (per portion vs per 100 g).
 
-## Adapter work breakdown
+## Adapter status
 
-| Provider    | Restaurants                       | Leads (UNVERIFIED, see docs/research/)                                   |
-|-------------|-----------------------------------|--------------------------------------------------------------------------|
-| compass     | A Bloc, TUAS, Dipoli, Alvari      | `menuapi/feed/json?costNumber=&language=`, `menuapi/day-menus?costCenter=`; cost ids unknown; macros unknown (maybe recipe endpoint) |
-| sodexo      | Kvarkki, likely T-talo            | `ruokalistat/output/daily_json/{id}/{date}`; ids unknown; pipe-delimited nutrient strings reported |
-| kanttiinit  | T-talo (fallback only)            | `kitchen.kanttiinit.fi/menus?restaurants=2&days=`; no macros expected      |
-| taffa       | Täffä                             | lunch.tf.fi; Täffä moved to A Blanc (Otakaari 27) in Oct 2026             |
-| menssa      | Menssa                            | nothing verified                                                         |
-| kipsari     | Kipsari (Studio + Väre?)          | nothing verified; possibly Facebook-only                                 |
-| unicafe     | Kaivopiha                         | menu.unicafe.fi backend unknown; old `unicafe.fi/wp-json/swiss/v1/restaurants` |
+| Provider | Restaurants                  | Status | Source / notes                                                    |
+|----------|------------------------------|--------|-------------------------------------------------------------------|
+| compass  | A Bloc, TUAS, Dipoli, Alvari | done   | `menuapi/day-menus` + `menuapi/recipes/<id>` (per 100 g macros)    |
+| sodexo   | Kvarkki, T-talo              | done   | `ruokalistat/output/daily_json/{id}/{date}` (per-component macros) |
+| kipsari  | Kipsari Väre                 | done   | `kipsari.com/rss-vare[-english]/`; no macros published; Studio has no feed |
+| taffa    | Täffä                        | later  | data only on `newapi.tf.fi/taffa/{lang}/json/week/`: host must be allowlisted |
+| menssa   | Menssa                       | later  | `menssa.fi/lounas/`: bare `menssa.fi` must be allowlisted          |
+| unicafe  | Kaivopiha                    | later  | `unicafe.fi/wp-json/swiss/v1/restaurants?lang=`: host must be allowlisted |
 
-## Status / next steps
+Provider ids were taken from Kanttiinit's restaurant list
+(`https://kitchen.kanttiinit.fi/restaurants`), which records each restaurant's upstream feed.
+Kanttiinit itself (`/menus?restaurants=<id>&days=<date>`) is reachable and serves menus without
+macros for the blocked restaurants (Täffä 3, Menssa 84, Kaivopiha 12): a possible stop-gap.
 
-1. Done: core contracts, registry, service, cache, date parsing, MCP tools, tests with fakes.
-2. Blocked until a session starts with network access to the restaurant domains
-   (the first session's container was created before the allowlist was changed).
-3. Next: re-run per-site research in-container (curl the pages, find ids/endpoints,
-   save raw responses as fixtures), then one Haiku agent per adapter, then live smoke tests
-   (`pytest -m live`), README usage + Claude Desktop/Code config.
+## Next steps
+
+1. Allowlist `newapi.tf.fi`, `menssa.fi` and `unicafe.fi`, then implement the three remaining
+   adapters the same way (live research, fixtures, offline + live tests).
+2. Optional: cache Compass recipe nutrition across days (recipes are static) to cut requests.

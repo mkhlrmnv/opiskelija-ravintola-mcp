@@ -19,7 +19,7 @@ RESTAURANTS: list[Restaurant] = [
         campus="Otaniemi",
         provider="compass",
         url=f"{_COMPASS}/a-bloc/",
-        config={"cost_number": "3087"},
+        config={"cost_number": "3087", "content_id": "3371"},
     ),
     Restaurant(
         id="tuas",
@@ -28,7 +28,7 @@ RESTAURANTS: list[Restaurant] = [
         campus="Otaniemi",
         provider="compass",
         url=f"{_COMPASS}/tuas-aalto-yliopisto/",
-        config={"cost_number": "0199"},
+        config={"cost_number": "0199", "content_id": "3321"},
     ),
     Restaurant(
         id="t-talo",
@@ -80,7 +80,7 @@ RESTAURANTS: list[Restaurant] = [
         campus="Otaniemi",
         provider="compass",
         url=f"{_COMPASS}/dipoli-ravintolat/",
-        config={"cost_number": "3101"},
+        config={"cost_number": "3101", "content_id": "3684"},
     ),
     Restaurant(
         id="alvari",
@@ -89,7 +89,7 @@ RESTAURANTS: list[Restaurant] = [
         campus="Otaniemi",
         provider="compass",
         url=f"{_COMPASS}/alvari/",
-        config={"cost_number": "0190"},
+        config={"cost_number": "0190", "content_id": "3445"},
     ),
     Restaurant(
         id="unicafe-kaivopiha",

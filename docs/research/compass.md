@@ -1,122 +1,189 @@
-# Compass Group / Food & Co (Espoo, Aalto) menu data sources
+# Compass Group / Food & Co (Espoo, Aalto): verified menu and macro sources
 
-Status: research only, nothing committed.
+Status: verified live on 2026-11-01 (Sunday) from this machine, through the outbound proxy.
+Adapter: `src/ravintola_mcp/adapters/compass.py`. Fixtures: `tests/fixtures/compass/`.
+All facts below were observed with plain GET requests unless marked otherwise.
 
-## 0. Access constraint (read first)
+## 1. Summary
 
-- `www.compass-group.fi` does NOT resolve from this session (`getaddrinfo ENOTFOUND`). None of the four target pages (A Bloc, TUAS, Dipoli, Alvari) could be fetched, so **nothing below is observed directly on compass-group.fi**.
-- `www.aalto.fi` and `help.valota.live` also fail to resolve. Those sites would have helped with cost IDs and opening hours.
-- Everything Compass-specific below is **secondhand**: read from third-party GitHub repos (code or README), or from search-engine summaries. Each item is labelled OBSERVED (in a third-party source's code/README/example) or UNVERIFIED (search summary or inference).
-- To finish the job, `www.compass-group.fi` (and ideally `www.aalto.fi`) must be allowed in the session network settings. Then re-run the checks in section 9.
+- **Macros are published.** Each meal links to a recipe, and each recipe has nutrition values
+  per 100 g (kcal, kJ, protein, carbohydrates, sugars, fat, saturated fat, fibre, salt).
+  No portion weight is published.
+- A single day's menu is one call: `/menuapi/day-menus`. No week endpoint is needed.
+- Lunch hours exist only as free text in a directory endpoint, which needs a content id.
+- The Kanttiinit `feed/json` endpoint is unreliable for a given date (see section 3).
 
-## 1. Endpoints seen in third-party code (OBSERVED in source, but not against compass-group.fi)
+## 2. Endpoints
 
-| Endpoint | Params seen | Source | Date of evidence |
+Base: `https://www.compass-group.fi`. Every endpoint below answered 200 for the ids given, except where noted.
+
+| Endpoint | Parameters | Result | Used |
 |---|---|---|---|
-| `https://www.compass-group.fi/menuapi/feed/json` | `costNumber=<id>&language=fi` | Kanttiinit/kitchen README debug example: `https://www.compass-group.fi/menuapi/feed/json?costNumber=0190&language=fi` (quoted in its README as `feed/json\?costNumber\=0190\&language\=fi`) | not dated |
-| `https://www.compass-group.fi/menuapi/feed/rss/current-week` | `costNumber=3024&language=fi` | Vincit/lunch-assistant README (Kuopio team, "RestaurantMenuURL") | ~2023 |
-| `https://www.compass-group.fi/menuapi/feed/rss/current-day` | `costNumber=0605&language=fi` | MCP README `mtpajula/tekuila-mcp` (via WebFetch of its README) | not dated |
-| `https://www.compass-group.fi/menuapi/day-menus` | `costCenter=<id>&date=<Mon Jun 24 2024>&language=en\|fi` | gist `matiasraisanen/4f997855f0d6452d6016400b83f93750` (AlmaTalo lunch script, code read via WebFetch) | the gist's example date is 2024-06-24 |
-| `https://www.compass-group.fi/menuapi/feed/json` (commented out) | `costNumber=<id>` | same gist, not executed | - |
+| `/menuapi/day-menus` | `costCenter=<id>`, `language=fi\|en`, `date=YYYY-MM-DD` (an ISO datetime also works) | One day: `{dayOfWeek, date, menuPackages[], html, isManualMenu}` | yes |
+| `/menuapi/recipes/<recipeId>` | `language=fi\|en` | Recipe with `nutritionalValues`; 404 for an unknown id | yes |
+| `/api/restaurant-search` | `q=<name>`, `language`, `pageSize`, `page` | `{hits:[{title, contentId, url, ...}]}` | yes (only if no `content_id`) |
+| `/api/restaurant-search/details` | `id=<contentId>`, `language` | `{costCenter, openingHoursHtml, ...}` | yes (hours) |
+| `/menuapi/week-menus` | `costCenter`, `language`, `date` (any date in the ISO week) | `{weekNumber, menus:[day, ...]}`, Mon-Fri (A Bloc also Sat and Sun) | no |
+| `/menuapi/feed/json` | `costNumber`, `language` | `{MenusForDays:[...]}` | no, see below |
+| `/menuapi/diets` | `costCenter` (required) | `[]` for Alvari; 400 without `costCenter` | no, no legend |
+| `/menuapi/assortments` | `costCenter` | empty body for Alvari | no |
 
-Notes:
-- `costNumber` (feed/json, feed/rss) and `costCenter` (day-menus) are **different parameter names for the same kind of ID**. Use whichever the endpoint wants; the examples are not consistent.
-- The gist's `date` format is `Mon Jun 24 2024` (weekday, month, day, year), URL-encoded. This is OBSERVED in the gist's code. Whether the current API still accepts it in 2026 is UNVERIFIED.
-- The newer `/menuapi/week-menus?costCenter=...&date=...&language=...` endpoint the brief mentions was **not found** in any source. It is UNVERIFIED and should not be used until checked.
-- Search summaries also mention "JSON feeds include lunch times" (a code comment in the gist). OBSERVED as a comment only.
+Observed behaviour:
+- `feed/json` (the Kanttiinit example) is not usable for a date. Alvari (`0190`, fi) returned
+  `MenusForDays: []` for Monday 2026-11-02. Dipoli (`3101`, en) returned one day, dated
+  2026-11-01, so it looks like a "current day" feed that may be stale.
+- An unknown `costCenter` returns 200 with an empty day, which is identical to a closed day.
+- `language=sv` returns Swedish menu text. Only `fi` and `en` are supported.
+- `date` as a plain `YYYY-MM-DD` and as an ISO datetime both work.
 
-## 2. IDs table
+Where the endpoints come from: the restaurant page loads `/dist/assets/main.*.js`, whose
+generated client (chunk `theme-compass-group.*.js`) defines `menuapi.dayMenusList`,
+`menuapi.weekMenusList`, `menuapi.recipesDetail`, and so on. The page's HTML also embeds the
+current day as `window.__INITIAL_MENU__`.
 
-Restaurant names are only known where a source says so. Aalto IDs were **NOT FOUND** in any source.
+## 3. Restaurant ids (cost numbers and directory content ids)
 
-| Restaurant | Cost ID | Status |
-|---|---|---|
-| A Bloc (Espoo, Aalto) | - | NOT FOUND |
-| TUAS (Aalto) | - | NOT FOUND |
-| Dipoli (restaurants) | - | NOT FOUND (multiple lines; see section 5) |
-| Alvari (Otaniemi) | - | NOT FOUND |
-| AlmaTalo (Helsinki) | 3097 | OBSERVED in gist (Helsinki, not our campus) |
-| Aallon Huippu (Helsinki) | 3117 | OBSERVED in gist; also `costNumber=3117` in a search-result snippet |
-| Oodi (Helsinki) | 0980 | OBSERVED in gist |
-| (unknown) | 0190 | OBSERVED in Kanttiinit README example, restaurant name not given |
-| (unknown, Kuopio team) | 3024 | OBSERVED in Vincit README, restaurant name not given |
-| (unknown) | 0605 | OBSERVED in tekuila README, restaurant name not given |
+Each directory `details` response reports `costCenter`, so the content id can be checked
+against the registry's cost number.
 
-Gotcha: the four Espoo IDs are what the server needs. Get them from the page source of the four compass-group.fi pages (see section 9), or from the Aalto campus page.
+| Restaurant (registry id) | costCenter | Directory title | contentId |
+|---|---|---|---|
+| A Bloc (`a-bloc`) | 3087 | A Bloc | 3371 |
+| TUAS (`tuas`) | 0199 | TUAS/Aalto-yliopisto | 3321 |
+| Dipoli (`dipoli`) | 3101 | Dipoli ravintolat | 3684 |
+| Alvari (`alvari`) | 0190 | Alvari | 3445 |
 
-## 3. Response structure (JSON, OBSERVED in gist code only)
+Dipoli is one cost number with several lines (see section 5), not one per line.
 
-The gist reads only these keys from the `day-menus` response (AlmaTalo / Aallon Huippu):
+## 4. Day menu JSON
 
 ```
-responseJSON["menuPackages"]          -> list
-responseJSON["menuPackages"][i]["meals"] -> list
-responseJSON["menuPackages"][i]["meals"][j]["name"] -> dish name
+{ "dayOfWeek": "Monday", "date": "2026-11-02T00:00:00", "menuPackages": [...],
+  "html": null, "isManualMenu": false }
+menuPackages[]: { "sortOrder", "name", "price", "meals": [...], "bundles": [...] }
+meals[]:        { "name", "recipeId", "diets": [...], "bundleId", "labels", "iconUrl",
+                  "dietsManuallyEdited", "ingredients": null }
+bundles[]:      { "id", "name", "displayName", "labels", "mealIds" }
 ```
 
-- `menuPackages[0]` = buffet, `[1]` = soup, `[2]` = chef's corner, according to the gist's own comments. This layout may be specific to those restaurants and is UNVERIFIED for A Bloc / TUAS / Dipoli / Alvari.
-- The gist hardcodes the lunch time `"10:45-13:30"` and does not read any time field.
-- No raw JSON sample was observed. The trimmed sample below is the **shape** the gist code implies, not a captured response:
+- `menuPackages[].name` is the line or station name. It is often blank (A Bloc, Alvari, TUAS
+  and Dipoli all have unnamed packages), and English names differ from Finnish ones.
+- `price` is free text: `opiskelija 3,10 € / henkilökunta 7,45 € / vieras 10,00 €`.
+  It is blank on soups and some packages.
+- Packages with no meals are price-only items (`Jälkiruoka` 1,50 €, `Dessert` 1,60 €)
+  or empty stubs (TUAS `Fresh Bufee`, a salad buffet). The adapter yields no dishes for them.
+- `meals[].name` can end in `\n` and contain double spaces. The adapter squashes whitespace.
+- `meals[].diets` can hold a joined string such as `"A ILM"` instead of separate codes.
+- `recipeId` 0 means the meal has no recipe. Its nutrition is never published (see section 6).
+- `html` and `isManualMenu` were `null` and `false` on every observed day. A manually
+  entered menu has not been observed, so the adapter only adds a note when `html` is set.
+- Closed day: `menuPackages: []` (verified: Alvari Sunday 2026-11-01, Dipoli Saturday
+  2026-11-07, Alvari Saturday 2026-11-07).
 
-```json
-{
-  "menuPackages": [
-    { "meals": [ { "name": "<dish name>" } ] },
-    { "meals": [ { "name": "<soup name>" } ] },
-    { "meals": [ { "name": "<chef's corner dish>" } ] }
-  ]
-}
-```
+Lines seen on the Monday 2026-11-02 week (fi names):
 
-- Keys NOT observed anywhere: `SetMenus`, `days`, `price`, `diets`, `allergens`, `lunch` times, `nutrition`/`energy`/`protein`/`carbohydrate`/`fat`/`salt`/`sugar`/`fiber`. The search summary says A Bloc / Alvari pages embed JSON-LD menu blocks with diet tags and allergen codes. This is UNVERIFIED.
+| Restaurant | Lines (packages with meals) |
+|---|---|
+| A Bloc | Vegaaninen Kasvislounas, Lounas, Wicked Rabbit Buffet 11-13.30, Chef's Kitchen, Pizzat |
+| TUAS | Kasvislounas, Lounas, Erikoisannos (special dish), plus Fresh Bufee (salad buffet, no meals) |
+| Dipoli | Vegaaninen kasvislounas, Lounas I, Lounas II, Grillistä Klo 11.00-14.00 (two packages), Jälkiruoka |
+| Alvari | Vegaaninen soppa, Vegaaninen Kasvislounas, Lounas, Special dish (Silinteri, Alvari) |
 
-## 4. Diet codes
+Adapter output for Monday 2026-11-02 (fi and en alike): A Bloc 16 dishes, TUAS 10, Dipoli 12,
+Alvari 9. English line names differ, for example "Vegan vegetarian lunch".
 
-- No Compass diet-code legend was observed in any source. Codes seen in the unrelated Otaniemi data file (G, L, VL, M, VE, VS, KA, SO, PA, SE, KASVIS, from other restaurants) are NOT evidence for Compass.
-- A Helsinki school-lunch Compass menu uses an asterisk for dishes that meet Finnish nutrition recommendations (search summary of `hel.fi` PDF snippet, not fetched). UNVERIFIED for our restaurants.
+## 5. Set menus (bundles)
 
-## 5. Dipoli and multiple lines
+Dipoli sells multi-component sets. A set appears as a `bundles[]` entry whose `mealIds`
+point at the component meals, and each component meal has `bundleId` set to the bundle's id.
+Example: the Dipoli line `Grillistä Klo 11.00-14.00` has two bundles, `Crispy chicken (G, L, M)`
+with potato salad, and `Pestorossojogurttia` with seasonal vegetables.
 
-- Not resolved. An Aalto campus-page search summary says Dipoli is run as "Dipoli Reima" and "Metso" lines, with some student-priced meals. This is UNVERIFIED because aalto.fi did not resolve.
-- No source shows how a Dipoli restaurant is split into lines in the API, or whether a line is lunch, cafe or dinner. Each Dipoli line probably needs its own cost ID. UNVERIFIED.
-- Third-party aggregator `lounaat.info` has a "Lounas Food & Co Dipoli, Espoo" page (URL seen in search results, not fetched).
+Decision in the adapter: each component is its own `Dish`, because nutrition is per 100 g
+and sets have no portion weights. Summing component values would be meaningless. The component
+gets `description = "Part of set: <bundle displayName>"`, which keeps the set context.
+Standalone meals have no description.
 
-## 6. Macros (kcal, protein, carbs, fat, fibre, salt, sugar)
+## 6. Macros (nutrition per recipe)
 
-- **Not found** in any Compass endpoint in any source. None of the code samples read a nutrition field.
-- The Sydänmerkki (heart symbol) partnership announced by Compass Group Finland on 13.10.2025 (press release, seen only as a search snippet) is a possible route to health flags, but says nothing about per-dish macros. UNVERIFIED.
-- Possible alternative if Compass has no nutrition data: Finnish food composition database Fineli, matched by dish name. Suggestion only, NOT checked here.
+- Source: `/menuapi/recipes/<recipeId>?language=fi`. The `recipeId` is on each meal.
+- Shape: `{recipeId, name, ingredientsCleaned, nutritionalValues:[{name, amount, unit}],
+  kgCO2ePer100g, diets, lastModified}`.
+- Nutrient names and units, consistent across all recipes checked:
+  `EnergyKcal` (kcal), `EnergyKj` (kJ), `Protein` (g), `Carbohydrates` (g), `Sugar` (g),
+  `Fat` (g), `FatSaturated` (g), `Fiber` (g), `Salt` (g).
+- **Basis: per 100 g.** The site's nutrition table is headed "per 100g". The energy values
+  agree (kJ / 4.184 = kcal). `Macros.basis = "100g"`, `portion_g = None`.
+- Coverage over the 123 distinct recipes on the four restaurants' fi weeks:
+  122 have `nutritionalValues`. Energy, protein, carbohydrates, sugar, fat and saturated fat
+  are always present. Fibre is present in 119 and salt in 116, so those two are optional.
+- Dishes without macros: every one checked (A Bloc 4, TUAS 2, Dipoli 2) has `recipeId` 0,
+  and Alvari has none. No dish with a real recipe lacked nutrition.
+- Verified sample: "Basilikalla maustettua tomaattikeittoa" (recipe 14167) is 51 kcal, 214 kJ,
+  protein 1.3 g, carbohydrates 5.7 g, sugar 3.5 g, fat 2.5 g, saturated fat 0.2 g,
+  fibre 1.3 g, salt 0.6 g, all per 100 g.
+- Cost: one recipe call per distinct recipe. A restaurant day has about 10-20 of them,
+  fetched 8 at a time. The adapter reports lookups that fail for reasons other than 404
+  in `Menu.notes`.
 
-## 7. Opening hours
+Diet and allergen code legend. It was read from the site's JS filter code, not from the
+translated labels, which are loaded at runtime. The API has no legend endpoint.
 
-- Not in any API source observed. The Alvari lunch hours "11.00–14.30" come from an aalto.fi search summary (UNVERIFIED, page not fetched).
-- Maukas and Nova Maukas hours in the Otaniemi data file belong to other restaurants and are not relevant.
+| Code | Meaning (from the UI filter) |
+|---|---|
+| `*` | Heart symbol (Sydänmerkki): meets Finnish nutrition recommendations |
+| `ILM` | Climate-friendly (low CO2e) |
+| `G` | Gluten-free |
+| `L` | Low lactose |
+| `M` | Dairy-free |
+| `Veg` | Vegan filter (vegan and vegetarian dishes) |
+| `VS` | Contains fresh garlic |
+| `A` | Contains allergens (no allergen names are published) |
+| `VL` | Seen on Dipoli dishes, not in the UI legend, so the meaning is unverified |
 
-## 8. Gotchas
+The adapter keeps every code in `Dish.diets` except `A`, which goes to `Dish.allergens`.
 
-1. The brief's URL slug is `foodco`, but search results show the English site uses `food--co` (e.g. `https://www.compass-group.fi/en/ravintolat-ja-ruokalistat/food--co/kaupungit/espoo/alvari/`). Both are UNVERIFIED for route validity.
-2. Parameter names differ: `costNumber` (feed/json, feed/rss) vs `costCenter` (day-menus).
-3. `date` format on day-menus is `Mon Jun 24 2024`, not ISO. ISO support is UNVERIFIED.
-4. The feeds and parsers in our sources are 2023–2024 vintage. Status in 2026 is UNVERIFIED.
-5. Several sources disagree on the number of restaurants (one repo says 5 and 6 in the same README). Not Compass-specific.
-6. Espoo restaurant hours and lines can change by season (search summary: Silinteri at Alvari in summer). UNVERIFIED.
+## 7. Lunch hours
 
-## 9. Unverified / needs in-container check
+- Source: `/api/restaurant-search/details?id=<contentId>&language=fi` returns `openingHoursHtml`.
+  It is free text, one block per outlet, and differs per restaurant. Examples:
+  - Alvari: `Alvari (Y-siipi)`, `MA-PE 8.00-15.00`, `lounas 11.00-14.30`, and more outlets.
+  - TUAS: `Avoinna:` / `ma-to 8.00-14.00` / `Lounas:` / `ma-pe 10.30-14.00`.
+  - Dipoli: `Avoinna ma-pe klo 8.00-15.30`, `Aamiainen tarjolla klo 8.00-10.00`, `Lounas tarjolla klo 11.00-15.00`.
+- The English details for Alvari have an empty `openingHoursHtml`, so `lunch_hours` is `None`.
+- `lunch_hours` in the adapter is this text flattened with `"; "`. It includes opening and
+  breakfast hours as well as lunch, because the site does not mark lunch hours separately.
+  Treat it as free text.
+- `lunchHoursToday` in the search hit is only for the current day, so it is not used.
 
-Once `www.compass-group.fi` is allowed, check these in order:
+## 8. Language
 
-1. Open each of the four pages (A Bloc, TUAS, Dipoli, Alvari) and view the page source. Look for `costNumber`, `costCenter`, `cost-center`, `data-*` attributes, script `src` or `fetch(` URLs, and any `menuapi` string.
-2. Fetch `https://www.compass-group.fi/menuapi/feed/json?costNumber=<id>&language=fi` with each ID. Save the raw JSON, then record its real top-level keys, the day list, dish names, prices, diet codes and any nutrition fields.
-3. Fetch `https://www.compass-group.fi/menuapi/day-menus?costCenter=<id>&date=<Mon Jun 24 2024 style>&language=fi` and compare with step 2.
-4. Test `https://www.compass-group.fi/menuapi/week-menus?costCenter=<id>&date=<YYYY-MM-DD>&language=en`. It is in the brief but not in any source here. Record success or 404.
-5. Check whether any response, or a JSON-LD block on the page, carries kcal or nutrient values. Record the exact key names and units (per portion or per 100 g).
-6. For Dipoli, list every line the page or API shows, with its cost ID and lunch/cafe/dinner type.
-7. Check `https://www.aalto.fi/en/campus/campus-restaurants-and-cafes` for opening hours and the Dipoli line structure.
+- `language=en` returns the same structure with English names and categories,
+  for example "Tomato soup with basil" and "Vegan vegetarian lunch". The day and recipe calls
+  both take `language`.
+- Page slugs differ by language: Finnish `/ravintolat-ja-ruokalistat/foodco/...`,
+  English `/en/ravintolat-ja-ruokalistat/food--co/...`. The registry uses the Finnish URLs.
+- The adapter falls back to Finnish when the English day call fails (HTTP error). This has not
+  been triggered by real data. A 200 response with an empty English menu is not a fallback case.
 
-## 10. Summary of confidence
+## 9. Gotchas
 
-- Feed URL shape `menuapi/feed/json?costNumber=<id>&language=fi`: moderate confidence, observed in third-party README/code examples, not on the live site.
-- `day-menus` shape with `costCenter` and `menuPackages[].meals[].name`: moderate confidence, observed in one gist's code (2024).
-- Espoo cost IDs for A Bloc / TUAS / Dipoli / Alvari: NONE found. Low.
-- `week-menus` endpoint: NOT FOUND. Treat as unverified.
-- Macros from Compass: NOT FOUND. No evidence the API exposes them.
+1. An unknown `costCenter` returns 200 with an empty day, the same as a closed day.
+2. `feed/json` is stale or empty for arbitrary dates. Use `day-menus`.
+3. Recipe `0` means no recipe, so no nutrition exists for that meal.
+4. Macros are per 100 g. Do not compare them with per-portion values, and do not sum a set.
+5. `diets` can contain a joined string (`"A ILM"`) and an `A` allergen flag.
+6. Package names are often blank. Dish categories then come from nothing and are `None`.
+7. Alvari has no English opening hours.
+8. Recipe calls are per recipe, not per day, so a day costs one call per distinct recipe.
+
+## 10. Recommendations for shared files (not edited here)
+
+- `src/ravintola_mcp/adapters/__init__.py`: register the adapter with
+  `from ravintola_mcp.adapters.compass import CompassAdapter` and `ADAPTERS["compass"] = CompassAdapter()`.
+- `restaurants.py` (optional): add `content_id` to each Compass restaurant's `config`
+  (A Bloc `3371`, TUAS `3321`, Dipoli `3684`, Alvari `3445`). The adapter then skips the
+  name search, which is one request per menu fetch. The adapter already reads `content_id`
+  when it is present.
+- No model changes are needed. `Macros` covers every published field, and `Dish.allergens`
+  holds the `A` flag.

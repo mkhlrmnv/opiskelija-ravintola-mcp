@@ -1,7 +1,7 @@
 """Registry of supported restaurants and name/alias resolution.
 
-Provider-specific ids in ``config`` are filled in as each adapter is implemented
-(see docs/research/ for how they were found).
+Provider-specific ids in ``config`` were taken from Kanttiinit's restaurant list
+(https://kitchen.kanttiinit.fi/restaurants), which records each restaurant's upstream feed.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ RESTAURANTS: list[Restaurant] = [
         campus="Otaniemi",
         provider="compass",
         url=f"{_COMPASS}/a-bloc/",
+        config={"cost_number": "3087"},
     ),
     Restaurant(
         id="tuas",
@@ -27,15 +28,16 @@ RESTAURANTS: list[Restaurant] = [
         campus="Otaniemi",
         provider="compass",
         url=f"{_COMPASS}/tuas-aalto-yliopisto/",
+        config={"cost_number": "0199"},
     ),
     Restaurant(
         id="t-talo",
         name="Tietotekniikan talo (T-talo)",
         aliases=["ttalo", "tietotekniikan talo", "cs building", "computer science building"],
         campus="Otaniemi",
-        provider="kanttiinit",
-        url="https://kanttiinit.fi/restaurant/2",
-        config={"restaurant_id": "2"},
+        provider="sodexo",
+        url="https://www.sodexo.fi/ravintolat/espoo/aalto-tietotekniikantalo",
+        config={"restaurant_id": "6754"},
     ),
     Restaurant(
         id="taffa",
@@ -60,6 +62,7 @@ RESTAURANTS: list[Restaurant] = [
         campus="Otaniemi",
         provider="sodexo",
         url="https://www.sodexo.fi/ravintolat/espoo/aalto-kvarkki",
+        config={"restaurant_id": "86"},
     ),
     Restaurant(
         id="kipsari",
@@ -76,6 +79,7 @@ RESTAURANTS: list[Restaurant] = [
         campus="Otaniemi",
         provider="compass",
         url=f"{_COMPASS}/dipoli-ravintolat/",
+        config={"cost_number": "3101"},
     ),
     Restaurant(
         id="alvari",
@@ -84,6 +88,7 @@ RESTAURANTS: list[Restaurant] = [
         campus="Otaniemi",
         provider="compass",
         url=f"{_COMPASS}/alvari/",
+        config={"cost_number": "0190"},
     ),
     Restaurant(
         id="unicafe-kaivopiha",

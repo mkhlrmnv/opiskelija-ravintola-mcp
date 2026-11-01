@@ -1,78 +1,93 @@
 # Unicafe (Kaivopiha) data source research
 
-Status: BLOCKED. Direct fetches of both target hosts failed at DNS resolution (`getaddrinfo ENOTFOUND`), which means the session's network policy does not allow them. Nothing below about endpoints, IDs, field names or macros has been observed directly. Items are labelled OBSERVED (seen in a search snippet), INFERRED, or UNVERIFIED.
+Status: BLOCKED at the data source. The adapter is NOT implemented. The site that users open, menu.unicafe.fi, is a static React app. Its menu data comes only from `https://unicafe.fi/wp-json/swiss/v1/...`, and `unicafe.fi` is on the session's blocked-host list. Items below are labelled VERIFIED (seen in a response or in the shipped JS bundle in this session), INFERRED, or UNVERIFIED.
 
-## What was attempted
+## Host allowlist needed
 
-| Target | Method | Result |
+Add `unicafe.fi` (and `www.unicafe.fi` if redirects use it) to the session network allowlist. The adapter cannot work without it. Everything else needed is already reachable.
+
+| Host | Result this session | Role |
 |---|---|---|
-| https://menu.unicafe.fi | WebFetch | ENOTFOUND. Host not in session's allowed network domains. |
-| https://unicafe.fi/wp-json/swiss/v1/restaurants/?lang=en | WebFetch | ENOTFOUND on unicafe.fi. |
-| https://unicafe.fi (main site) | not retried | Same host, same policy block. |
+| `https://menu.unicafe.fi` | 200, reachable (via proxy) | Static SPA shell only. No data API. |
+| `https://unicafe.fi` | `curl` exit 000 (blocked) | **Real data source.** Required. |
+| `https://messi.hyyravintolat.fi` | DNS fails over http. CONNECT returns 403 from the egress proxy (refused by policy). | Old HYY API used by `unicafe-cli`. Not usable here. |
+| `https://kitchen.kanttiinit.fi` | 200, reachable | Third-party aggregator. Has Kaivopiha data (see section 5). Not the official source. |
+| `https://kanttiinit.fi` | `curl` exit 000 | Not usable here. |
 
-Per the tool guidance, further host attempts were stopped after both failed. Only WebSearch (which works) was used after that.
+## 1. Where menu.unicafe.fi gets its data (VERIFIED)
 
-## 1. How menu.unicafe.fi gets its data
+- `GET https://menu.unicafe.fi/` returns a 2.7 kB HTML shell. It loads `/static/js/2.ddce8e18.chunk.js` and `/static/js/main.799fa323.chunk.js`. Title "UniCafe Menu", app name `unicafe-pwa`.
+- `https://menu.unicafe.fi/api` and `https://menu.unicafe.fi/wp-json/swiss/v1/restaurants?lang=fi` both return the same HTML shell (SPA fallback, byte-identical to `/`). The site has no API of its own.
+- The only data request in `main.799fa323.chunk.js` is an axios GET built by:
 
-- UNVERIFIED. No JS bundle, API base URL or restaurant ID was observed.
-- The `/wp-json/swiss/v1/restaurants/` path was not confirmed. A search for it returned nothing Unicafe-specific. Treat it as a candidate only.
-- Which of the two is current: UNKNOWN. Needs an in-session check.
-- Kaivopiha ID or slug: UNKNOWN. The only "UniCafe Kaivopiha" ID found was on spinach.guide (venue 107846). That is a third-party listing, not Unicafe's ID, so it must not be used.
+  ```js
+  function O(e, t) {
+    return "https://unicafe.fi/wp-json/swiss/v1" + "/" + e + "?lang=" + t
+  }
+  // in the restaurants thunk: E.a.get(O("restaurants", lang))
+  ```
 
-## 2. Requesting a date and language
+  So the single endpoint is **`GET https://unicafe.fi/wp-json/swiss/v1/restaurants?lang=<lang>`**. The app reads `response.data` as a list of restaurants. It has no date parameter. It fetches all restaurants and all days, and filters on the client.
+- Client-side normalisation seen in the bundle:
+  - Each restaurant's id is `restaurant.menuData.id` (copied to `restaurant.id`).
+  - `restaurant.menuData.menus[].date` looks like `"Ma 2.11"` (Finnish abbreviation, space, day.month). It is rewritten to `"Monday 2.11"`. Accepted abbreviations: Ma/Må/Mon, Ti/Tis/Tue, Ke/Ons/Wed, To/Tors/Thu, Pe/Fre/Fri, La/Lör/Sat, Su/Sön/Sun.
+  - The app skips a refetch when its cached copy is less than 5 units old (the unit is probably minutes; UNVERIFIED).
+- Languages: the UI strings contain `fi`, `sv` and `en` tables, so `lang` is one of `fi`, `sv`, `en` (VERIFIED from the UI string tables; the API's own handling of `lang` is UNVERIFIED).
+- Allergen and diet labels: the bundle contains a translation table (fi, sv, en) for allergens such as "sisältää gluteenia" / "may contain gluten", "selleriä" / "celery", "sinappia" / "mustard", "soijaa" / "soy", "sulfiitteja" / "sulphites", "valkosipulia" / "garlic", "äyriäisiä" / "shellfish". Diet codes and their meaning are UNVERIFIED (the app has filters for vegan, vegetarian, fish, dessert, special, lunch, sideDish).
+- Nutrition: the UI has a string "Ravintoarvo 100g" / "Näringsvärde 100 g" / "Nutrition 100g". That suggests a per-100 g nutrition display, but the bundle contains no nutrition field names, so this is INFERRED only. Confirm against a real response before writing any macro mapping.
 
-- UNVERIFIED. No query parameters (date, lang) were observed.
-- Language values fi/en/sv are assumed from site structure (`/en/` paths exist on unicafe.fi, and a Swedish version of the studies.helsinki.fi notices exists). Not confirmed for the API.
+## 2. Kaivopiha identity (VERIFIED from Kanttiinit's list, not from Unicafe)
 
-## 3. Response structure (days, dishes, prices, diet codes, allergens)
+- Kanttiinit's `GET https://kitchen.kanttiinit.fi/restaurants` returns a JSON list of 48 restaurants. Kaivopiha is:
+  - `id: 12`, `name: "Kaivopiha"`, `areaId: 7`, `priceCategory: "student"`, `address: "Mannerheimintie 3 B, 00100 Helsinki"`
+  - `url: https://unicafe.fi/restaurants/kaivopiha/`
+  - `menuUrl: https://unicafe.fi/wp-json/swiss/v1/restaurants?lang=%lang%#kaivopiha`, which confirms that Kaivopiha's menu is the `restaurants` list filtered by slug `kaivopiha`.
+- The Unicafe slug or id used in the `restaurants` response is still UNVERIFIED. The `#kaivopiha` fragment and the `menuData.id` field are the likely keys. Confirm the exact value from a real response once `unicafe.fi` is reachable.
+- Kanttiinit `openingHours` for Kaivopiha: `["11:00 - 19:45" x5, "11:30 - 17:00", null]`. Assuming index 0 is Monday (INFERRED), that is Mon to Fri 11:00-19:45, Sat 11:30-17:00, Sun closed. Kanttiinit data is secondary. Confirm on unicafe.fi.
+- Hours from older snippets (19:00 vs 19:45) conflict. Prefer the value from the live restaurants response.
 
-- UNVERIFIED. No response body was seen.
-- Search snippets confirm only that unicafe.fi has a "special diets and prices" page (https://unicafe.fi/en/special-diets-and-prices/). It was not fetched, so its contents are unknown.
+## 3. Request parameters and response shape
 
-## 4. Macros and nutrition
+- Date: NOT a request parameter. Each restaurant object carries its menus, and the client picks the day. The adapter must filter by date, but the exact day key format (for example `"2.11"` after the `Ma` abbreviation is stripped, or a full ISO date) is UNVERIFIED until a real response is read.
+- Lang: `?lang=fi|sv|en` (INFERRED from the app's UI language handling; a fallback to `fi` must be tested).
+- Dish structure, prices, diet codes, allergen codes and macros: UNVERIFIED. No live Unicafe response was obtained.
 
-- No evidence found that Unicafe publishes per-dish kcal, protein, carbs, fat, fibre, salt, sugar or saturated fat. The search results found no Unicafe nutrition table.
-- The nutrition tables that did appear were from Sodexo, which lists values per 100 g. That is a different chain and is not a valid source for Unicafe.
-- Conclusion: macros are UNVERIFIED and may not exist at all. Plan for a fallback (for example, matching dish names to a nutrition database) until a check of the actual menu data proves otherwise.
+## 4. Macros
 
-## 5. Plain GET vs. JS rendering
+- No nutrition field names appear anywhere in the shipped bundle. Only the "Ravintoarvo 100g" label appears (see section 1).
+- Per the project rule, do not map macros until a real response shows them. If no per-dish macros exist, the adapter should return `macros=None` for all dishes.
+- Do not use Sodexo nutrition values as a stand-in for Unicafe.
 
-- UNKNOWN. Not observed. The menu app is mentioned as a mobile app, which suggests a JSON backend, but this is INFERRED.
+## 5. Kanttiinit fallback (reachable, third-party, not implemented)
 
-## 6. Opening and lunch hours (Kaivopiha)
+`GET https://kitchen.kanttiinit.fi/menus?restaurants=12&days=2026-11-02` returned 200 (JSON, 424 bytes):
 
-Secondhand, conflicting, and undated. Do not rely on these.
+```json
+{"12": {"2026-11-02": [
+  {"title": "Seitan - Hoi Sin bowl", "properties": []},
+  {"title": "Maggara-harissapata", "properties": ["G"]},
+  {"title": "Lihamakaronilaatikko (broileri)", "properties": ["L"]}
+]}}
+```
 
-- A unicafe.fi news item (undated in the snippet, mentions "from 23 August") gives Kaivopiha weekdays and lunch 11:00-19:00. Source: https://unicafe.fi/en/news/unicafe-serves-on-all-campuses-five-restaurants-open-from-23-aug
-- A studies.helsinki.fi page says Kaivopiha serves lunch on weekdays until 19:45 and Saturdays until 17:00 (undated). The search snippet did not identify the exact page URL for this claim, so the source is UNVERIFIED.
-- Myöha, a separate bar-restaurant in Kaivopiha's new wing, is listed with lunch Mon-Fri 11-14. Do not confuse it with Kaivopiha.
+- 7 dishes for Monday 2026-11-02. Each has only `title` and `properties` (diet codes G, L, M seen). No prices, no allergens, no nutrition, no description. Kanttiinit's own menu source is Unicafe, so this is a reshaped copy and may lag the official site.
+- Use only with a decision from the project owner, since it is a third-party aggregator with unknown terms. It gives no macros, so it would not meet the macro goals of this adapter.
 
-## Other leads (from search snippets, not opened)
+## 6. Other leads (checked)
 
-- VarjoCafe (github.com/luontola/varjocafe): an older scraper of Unicafe lunch menus. Per the snippet, it is not compatible with the 2022 Unicafe website and is unmaintained. Useful for ideas, not as a current source.
-- unicafe-cli npm package (v0.1.2, unpkg README): a CLI that shows Unicafe menus. Per the snippet, it supports `-r` (list restaurants), `-w` (week), `-e` (English). It is the most promising lead for the real endpoint. Its source would show the URL it calls. Not opened because the host was not allowed.
-- Not relevant: TUM-Dev/eat-api (TUM canteens), Sodexo pages (different chain), dqbd/suz-lunch, grigorig/mittagv2, iugx/ru-menu.
+- `unicafe-cli` 0.1.2 (npm, github.com/aapzu/unicafe-cli): uses `http://messi.hyyravintolat.fi/publicapi/restaurants` and `/publicapi/restaurant/{id}`. That host is blocked and the API looks legacy. Not usable.
+- VarjoCafe: an older scraper, not compatible with the current site (from earlier search snippet, not re-checked).
 
-## Gotchas
+## 7. Gotchas
 
-- Both target hosts are blocked from this container. Every field name, URL and ID above is unverified.
-- Search snippets are secondhand and some are undated or from the 2020-2022 period, so they may be stale.
-- Hours from snippets conflict (19:00 vs 19:45). Pick a source after checking the live site.
-- Do not use Sodexo nutrition data as a stand-in for Unicafe.
+- `menu.unicafe.fi` returns 200 for any path, including unknown API paths. Do not treat a 200 as proof of an API. Check `content-type` and the body.
+- Hours and macro availability cannot be inferred from the shell or the bundle. Only the data endpoint can confirm them.
 
-## Unverified / needs in-container check
+## Next steps once unicafe.fi is allowlisted
 
-1. Allow `menu.unicafe.fi` and `unicafe.fi` in the session network settings (or run the check from a machine that can reach them).
-2. Fetch `https://menu.unicafe.fi` and capture the script `src` URLs and any API base URL from the page source.
-3. Open the JS bundle(s) and search for `api`, `wp-json`, `restaurants`, `lang`, `date`. Record the exact endpoint paths.
-4. Call the restaurant list endpoint (current and old) and record Kaivopiha's ID or slug in each.
-5. Call the daily menu endpoint for one known date in fi, en and sv. Save a trimmed raw JSON sample.
-6. Check for nutrition fields. Record exact names, units (per 100 g or per portion) and whether they are null for most dishes.
-7. Check whether the menu is in the first HTML (plain GET is enough) or only after JS runs.
-8. Read https://unicafe.fi/en/special-diets-and-prices/ for diet codes and allergen definitions.
-9. Inspect the unicafe-cli npm package source (on npm or unpkg) to confirm the endpoint it calls.
-10. Confirm Kaivopiha's current weekday hours on the live site.
+1. `curl https://unicafe.fi/wp-json/swiss/v1/restaurants?lang=fi` and save a trimmed Kaivopiha-only sample under `tests/fixtures/unicafe/`.
+2. Repeat with `lang=en` and `lang=sv` to test the language fallback.
+3. Record the exact key for Kaivopiha, the day key format, the dish fields, diet and allergen codes, price fields, and whether nutrition fields exist (with their unit and basis).
+4. Then implement `src/ravintola_mcp/adapters/unicafe.py` and `tests/test_unicafe.py`.
 
-Recommendation: the MCP design should not assume macros exist for Unicafe until step 6 is done. Plan for a per-dish fallback.
-
-No files were committed.
+Registry config (already in `restaurants.py`, unchanged in this run): `id="unicafe-kaivopiha"`, `provider="unicafe"`, `url="https://menu.unicafe.fi"`. The Unicafe slug or id should go into `config`, for example `config={"slug": "kaivopiha"}`, after verification. It is not added yet because `restaurants.py` is out of scope for this run.

@@ -66,11 +66,12 @@ RESTAURANTS: list[Restaurant] = [
     ),
     Restaurant(
         id="kipsari",
-        name="Kipsari",
-        aliases=[],
+        name="Kipsari Väre",
+        aliases=["kipsari vare", "vare", "väre"],
         campus="Otaniemi",
         provider="kipsari",
         url="https://www.kipsari.com",
+        config={"feed": "rss-vare"},
     ),
     Restaurant(
         id="dipoli",

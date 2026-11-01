@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from ravintola_mcp.adapters.base import MenuAdapter
+from ravintola_mcp.adapters.kipsari import KipsariAdapter
 
-ADAPTERS: dict[str, MenuAdapter] = {}
+ADAPTERS: dict[str, MenuAdapter] = {adapter.provider: adapter for adapter in (KipsariAdapter(),)}
 
 
 def get_adapter(provider: str) -> MenuAdapter | None:

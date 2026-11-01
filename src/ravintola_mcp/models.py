@@ -5,10 +5,12 @@ from __future__ import annotations
 import datetime as dt
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 Lang = Literal["en", "fi"]
 MacroBasis = Literal["portion", "100g", "unknown"]
+
+KJ_PER_KCAL = 4.184
 
 
 class Macros(BaseModel):
@@ -28,10 +30,26 @@ class Macros(BaseModel):
     fibre_g: float | None = None
     salt_g: float | None = None
 
+    @model_validator(mode="after")
+    def _fill_missing_energy_unit(self) -> Macros:
+        """Give both energy units when the site publishes only one of them."""
+        if self.energy_kcal is None and self.energy_kj is not None:
+            self.energy_kcal = round(self.energy_kj / KJ_PER_KCAL, 1)
+        elif self.energy_kj is None and self.energy_kcal is not None:
+            self.energy_kj = round(self.energy_kcal * KJ_PER_KCAL, 1)
+        return self
+
     def is_empty(self) -> bool:
         return all(
             v is None for k, v in self.model_dump().items() if k not in ("basis", "portion_g")
         )
+
+
+class DishComponent(BaseModel):
+    """One part of a multi-component dish, with its own nutrition when the site publishes it."""
+
+    name: str
+    macros: Macros | None = None
 
 
 class Dish(BaseModel):
@@ -44,7 +62,14 @@ class Dish(BaseModel):
     )
     allergens: list[str] = Field(default_factory=list)
     price: str | None = Field(None, description="Price text as published (student price if known).")
-    macros: Macros | None = None
+    macros: Macros | None = Field(
+        None, description="Nutrition of the dish as a whole; null for multi-component dishes."
+    )
+    components: list[DishComponent] = Field(
+        default_factory=list,
+        description="Parts of the dish with their own nutrition (per-100 g values cannot be "
+        "summed into a dish total).",
+    )
 
 
 class Menu(BaseModel):
@@ -63,7 +88,10 @@ class Menu(BaseModel):
 
     @property
     def macros_available(self) -> bool:
-        return any(d.macros is not None for d in self.dishes)
+        return any(
+            d.macros is not None or any(c.macros is not None for c in d.components)
+            for d in self.dishes
+        )
 
 
 class Restaurant(BaseModel):

@@ -9,7 +9,7 @@ from collections.abc import Mapping
 import httpx
 
 from ravintola_mcp.adapters.base import MenuAdapter
-from ravintola_mcp.models import Dish, Lang, Macros, Menu, Restaurant
+from ravintola_mcp.models import Dish, DishComponent, Lang, Macros, Menu, Restaurant
 
 DAY = dt.date(2026, 11, 2)
 
@@ -56,8 +56,11 @@ def make_dish(
     *,
     macros: Macros | None = None,
     diets: list[str] | None = None,
+    components: list[DishComponent] | None = None,
 ) -> Dish:
-    return Dish(id=dish_id, name=name, macros=macros, diets=diets or [])
+    return Dish(
+        id=dish_id, name=name, macros=macros, diets=diets or [], components=components or []
+    )
 
 
 def make_menu(

@@ -7,7 +7,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 from ravintola_mcp import server
 from ravintola_mcp.dates import resolve_date
-from ravintola_mcp.models import Macros
+from ravintola_mcp.models import DishComponent, Macros
 from ravintola_mcp.restaurants import RESTAURANTS
 from ravintola_mcp.service import MenuService
 from tests.fakes import FakeAdapter, make_dish, make_menu
@@ -29,6 +29,21 @@ def service(http_client: httpx.AsyncClient) -> Iterator[MenuService]:
                     diets=["G"],
                 ),
                 make_dish("salad", "Salaatti"),
+                make_dish(
+                    "lihapullat",
+                    "Lihapullia ja muusia",
+                    components=[
+                        DishComponent(
+                            name="Lihapyöryköitä",
+                            macros=Macros(basis="100g", energy_kj=913.5, protein_g=14.0),
+                        ),
+                        DishComponent(
+                            name="Perunamuusia",
+                            macros=Macros(basis="100g", energy_kj=336.7, protein_g=2.0),
+                        ),
+                        DishComponent(name="Kastike"),  # no values published
+                    ],
+                ),
             ],
         ),
         "tuas": make_menu("tuas", "TUAS", [make_dish("pasta", "Pasta")]),
@@ -56,8 +71,16 @@ async def test_get_menu_strips_macros_and_flags_availability(service: MenuServic
     assert menu["restaurant_id"] == "a-bloc"
     assert menu["date"] == ISO
     assert menu["macros_available"] is True
-    assert [d["name"] for d in menu["dishes"]] == ["Kana", "Salaatti"]
+    assert [d["name"] for d in menu["dishes"]] == ["Kana", "Salaatti", "Lihapullia ja muusia"]
     assert all("macros" not in d for d in menu["dishes"])
+
+
+async def test_get_menu_strips_component_macros_but_keeps_names(service: MenuService) -> None:
+    menu = await server.get_menu("A Bloc", ISO)
+    assert isinstance(menu, dict)
+    components = menu["dishes"][2]["components"]
+    assert [c["name"] for c in components] == ["Lihapyöryköitä", "Perunamuusia", "Kastike"]
+    assert all(set(c) == {"name"} for c in components)
 
 
 async def test_get_menu_reports_when_no_macros_are_published(service: MenuService) -> None:
@@ -79,6 +102,25 @@ async def test_get_full_menu_includes_macros(service: MenuService) -> None:
     assert menu["dishes"][0]["macros"]["protein_g"] == 40
     assert menu["dishes"][1]["macros"] is None
     assert menu["macros_available"] is True
+    multi = menu["dishes"][2]
+    assert multi["macros"] is None
+    assert multi["components"][0] == {
+        "name": "Lihapyöryköitä",
+        "macros": {
+            "basis": "100g",
+            "portion_g": None,
+            "energy_kcal": 218.3,
+            "energy_kj": 913.5,
+            "protein_g": 14.0,
+            "carbohydrates_g": None,
+            "sugars_g": None,
+            "fat_g": None,
+            "saturated_fat_g": None,
+            "fibre_g": None,
+            "salt_g": None,
+        },
+    }
+    assert multi["components"][2]["macros"] is None
 
 
 async def test_failed_restaurant_is_reported_in_its_menu(service: MenuService) -> None:
@@ -105,6 +147,41 @@ async def test_get_macros_returns_values(service: MenuService) -> None:
 async def test_get_macros_explains_when_site_publishes_none(service: MenuService) -> None:
     result = await server.get_macros("a-bloc", "Salaatti", ISO)
     assert result["macros"] is None
+    assert result["components"] == []
+    assert "publishes no nutrition values" in result["message"]
+
+
+async def test_get_macros_returns_components_for_multi_component_dish(
+    service: MenuService,
+) -> None:
+    result = await server.get_macros("a-bloc", "Lihapullia", ISO)
+    assert result["dish_id"] == "lihapullat"
+    assert result["macros"] is None
+    assert result["message"] is None
+    assert [c["name"] for c in result["components"]] == [
+        "Lihapyöryköitä",
+        "Perunamuusia",
+        "Kastike",
+    ]
+    assert result["components"][0]["macros"]["protein_g"] == 14.0
+    assert result["components"][2]["macros"] is None
+
+
+async def test_get_macros_message_when_neither_dish_nor_components_have_values(
+    http_client: httpx.AsyncClient,
+) -> None:
+    dish = make_dish("bare", "Bare", components=[DishComponent(name="Osa")])
+    menus = {"a-bloc": make_menu("a-bloc", "A Bloc", [dish])}
+    fake = MenuService(
+        adapters={"compass": FakeAdapter("compass", menus=menus)}, client=http_client
+    )
+    previous = server._service
+    server.set_service(fake)
+    try:
+        result = await server.get_macros("a-bloc", "Bare", ISO)
+    finally:
+        server.set_service(previous)
+    assert result["components"] == [{"name": "Osa", "macros": None}]
     assert "publishes no nutrition values" in result["message"]
 
 

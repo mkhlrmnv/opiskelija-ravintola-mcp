@@ -20,17 +20,18 @@ from typing import Any
 import httpx
 
 from ravintola_mcp.adapters.base import AdapterError, MenuAdapter, parse_number, slugify
-from ravintola_mcp.models import Dish, Lang, Macros, Menu, Restaurant
+from ravintola_mcp.models import Dish, DishComponent, Lang, Macros, Menu, Restaurant
 
 BASE_URL = "https://www.sodexo.fi"
 NO_MENU_NOTE = "No lunch menu is published for this day (closed, or not yet published)."
 MULTI_COMPONENT_NOTE = (
-    "Sodexo publishes nutrition per 100 g for each component of a dish. Macros are shown only "
-    "for single-component dishes; {count} multi-component dish(es) have no macros."
+    "Sodexo publishes nutrition per 100 g for each component of a dish. For the {count} "
+    "multi-component dish(es), nutrition is listed per component in `components`; the dish "
+    "itself has no macros."
 )
 
-# Sodexo unit token -> Macros field. Energy is published in kJ only; kcal is derived by the
-# service layer. Sugars are not published.
+# Sodexo unit token -> Macros field. Energy is published in kJ only; the kcal twin is filled in
+# by the Macros model validator. Sugars are not published.
 NUTRIENT_FIELDS: dict[str, str] = {
     "kj": "energy_kj",
     "proteiin": "protein_g",
@@ -110,10 +111,14 @@ class SodexoAdapter(MenuAdapter):
             components = [name for name in (_text(r.get("name")) for r in recipes) if name]
             if len(recipes) > 1:
                 multi_component += 1
-            # Per-100 g values only describe a dish when it has exactly one component.
+            # Per-100 g values only describe a dish when it has exactly one component; otherwise
+            # each component keeps its own values.
             macros: Macros | None = None
+            dish_components: list[DishComponent] = []
             if len(recipes) == 1:
                 macros = parse_macros(_text(recipes[0].get("nutrients")))
+            elif len(recipes) > 1:
+                dish_components = _dish_components(recipes)
             menu.dishes.append(
                 Dish(
                     id=_unique_id(slugify(title) or f"course-{key}", used_ids),
@@ -124,6 +129,7 @@ class SodexoAdapter(MenuAdapter):
                     allergens=_allergens(course, lang),
                     price=_text(course.get("price")) or None,
                     macros=macros,
+                    components=dish_components,
                 )
             )
 
@@ -171,6 +177,17 @@ def _recipes(course: Mapping[str, Any]) -> list[Mapping[str, Any]]:
         for _, recipe in sorted(recipes.items(), key=lambda kv: _numeric_key(kv[0]))
         if isinstance(recipe, dict)
     ]
+
+
+def _dish_components(recipes: list[Mapping[str, Any]]) -> list[DishComponent]:
+    """Named recipes of a multi-component course, in published order, with their own macros."""
+    parts: list[DishComponent] = []
+    for recipe in recipes:
+        name = _text(recipe.get("name"))
+        if name:
+            macros = parse_macros(_text(recipe.get("nutrients")))
+            parts.append(DishComponent(name=name, macros=macros))
+    return parts
 
 
 def _allergens(course: Mapping[str, Any], lang: Lang) -> list[str]:

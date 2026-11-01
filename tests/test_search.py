@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from ravintola_mcp.models import Macros, Menu
+from ravintola_mcp.models import DishComponent, Macros, Menu
 from ravintola_mcp.service import MIXED_BASIS_NOTE, MenuService, SortBy
 from tests.fakes import make_dish, make_menu
 
@@ -47,6 +47,12 @@ def _names(rows: list[dict]) -> list[str]:
 def test_only_dishes_with_macros_are_returned() -> None:
     rows = MenuService.search_by_macros(_menus())
     assert sorted(_names(rows)) == ["Kana", "Lohi", "Pasta", "Tofu"]
+
+
+def test_multi_component_dishes_are_not_searchable() -> None:
+    parts = [DishComponent(name="Liha", macros=Macros(basis="100g", protein_g=50, energy_kj=900))]
+    dish = make_dish("lihapullat", "Lihapullat", components=parts)
+    assert MenuService.search_by_macros([make_menu("a-bloc", "A Bloc", [dish])]) == []
 
 
 def test_row_shape_keeps_full_dish_and_basis() -> None:

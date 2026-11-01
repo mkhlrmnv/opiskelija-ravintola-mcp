@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 SortBy = Literal["protein_desc", "kcal_asc", "kcal_desc", "protein_per_kcal_desc"]
 
-KJ_PER_KCAL = 4.184
 HTTP_TIMEOUT_S = 15.0
 MIXED_BASIS_NOTE = (
     "These dishes mix per-portion and per-100 g macro values; compare them with care "
@@ -129,10 +128,11 @@ class MenuService:
         sort_by: SortBy = "protein_desc",
         limit: int = 20,
     ) -> list[dict[str, Any]]:
-        """Filter and sort dishes that have macros. Pure function: no I/O.
+        """Filter and sort dishes that have whole-dish macros. Pure function: no I/O.
 
-        A dish lacking a field that an active filter or sort needs is excluded (or sorted last).
-        kcal is derived from kJ when only kJ is published.
+        Multi-component dishes (nutrition per component) are not considered: their per-100 g
+        values cannot be summed into a dish total. A dish lacking a field that an active filter or
+        sort needs is excluded (or sorted last).
         """
         if limit < 1:
             raise ValueError("limit must be at least 1")
@@ -147,7 +147,7 @@ class MenuService:
 
         ranked: list[tuple[tuple[bool, float], dict[str, Any]]] = []
         for menu, dish, macros in pool:
-            kcal = _kcal(macros)
+            kcal = macros.energy_kcal
             if not (
                 _at_least(macros.protein_g, min_protein_g)
                 and _at_least(kcal, min_kcal)
@@ -198,14 +198,6 @@ def _dish_not_found(menu: Menu, dish: str) -> str:
 
 def _ratio(a: str, b: str) -> float:
     return difflib.SequenceMatcher(None, a, b).ratio()
-
-
-def _kcal(macros: Macros) -> float | None:
-    if macros.energy_kcal is not None:
-        return macros.energy_kcal
-    if macros.energy_kj is not None:
-        return macros.energy_kj / KJ_PER_KCAL
-    return None
 
 
 def _at_least(value: float | None, minimum: float | None) -> bool:

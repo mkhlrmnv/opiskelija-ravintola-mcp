@@ -79,7 +79,7 @@ async def test_normal_day_maps_courses_and_macros() -> None:
     assert baguette.macros.model_dump() == {
         "basis": "100g",
         "portion_g": None,
-        "energy_kcal": None,
+        "energy_kcal": 236.6,
         "energy_kj": 989.8,
         "protein_g": 7.32,
         "carbohydrates_g": 28.15,
@@ -99,7 +99,44 @@ async def test_multi_component_dishes_have_no_macros_but_list_components() -> No
     burger = next(d for d in menu.dishes if d.id.startswith("cheese-burger"))
     assert burger.macros is None
     assert burger.description == "Cheese burger, Ranskalaisia perunoita"
+    assert [c.name for c in burger.components] == ["Cheese burger", "Ranskalaisia perunoita"]
+    assert all(c.macros is not None and c.macros.basis == "100g" for c in burger.components)
+    assert burger.components[0].macros is not None
+    assert burger.components[0].macros.energy_kj == 771.52
+    assert burger.components[0].macros.fat_g == 11.45
+    assert burger.components[1].macros is not None
+    assert burger.components[1].macros.energy_kj == 637.5
     assert any("4 multi-component" in note for note in menu.notes)
+
+
+async def test_multi_component_course_keeps_recipe_order_and_per_part_values() -> None:
+    menu = await _fetch(
+        T_TALO, MONDAY, "fi", T_TALO_FI_URL, _ok(_fixture_bytes("t-talo_daily_2026-11-02.json"))
+    )
+
+    dish = next(d for d in menu.dishes if any(c.name == "Paprikakastiketta" for c in d.components))
+    assert dish.macros is None
+    assert [c.name for c in dish.components] == [
+        "Broileripyöryköitä",
+        "Paprikakastiketta",
+        "Keitettyjä perunoita",
+    ]
+    sauce = dish.components[1].macros
+    assert sauce is not None
+    assert sauce.basis == "100g"
+    assert sauce.energy_kj == 242.4
+    assert sauce.protein_g == 0.6
+    assert sauce.energy_kcal == 57.9  # filled from kJ by the Macros model
+
+
+async def test_single_recipe_course_has_macros_and_no_components() -> None:
+    menu = await _fetch(
+        T_TALO, MONDAY, "fi", T_TALO_FI_URL, _ok(_fixture_bytes("t-talo_daily_2026-11-02.json"))
+    )
+
+    dessert = next(d for d in menu.dishes if d.id == "mansikkarahka")
+    assert dessert.macros is not None
+    assert dessert.components == []
 
 
 async def test_t_talo_dessert_has_macros_and_student_price_text() -> None:

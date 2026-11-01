@@ -9,7 +9,7 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from ravintola_mcp.dates import resolve_date
-from ravintola_mcp.models import Lang, Menu
+from ravintola_mcp.models import Lang, Macros, Menu
 from ravintola_mcp.restaurants import RESTAURANTS
 from ravintola_mcp.service import MenuService, SortBy
 
@@ -38,7 +38,13 @@ def _menu_to_dict(menu: Menu, *, include_macros: bool) -> dict[str, Any]:
     if not include_macros:
         for dish in data["dishes"]:
             del dish["macros"]
+            for component in dish["components"]:
+                del component["macros"]  # component names stay: they describe the menu
     return data
+
+
+def _has_values(macros: Macros | None) -> bool:
+    return macros is not None and not macros.is_empty()
 
 
 async def _menus_response(
@@ -71,11 +77,12 @@ async def get_menu(
 ) -> dict[str, Any] | list[dict[str, Any]]:
     """Get the lunch menu of one restaurant, or of all restaurants if `restaurant` is omitted.
 
-    Dishes are returned without nutrition values; use get_full_menu for macros, or get_macros
-    for one dish. `restaurant` takes an id, name or alias (e.g. 'a-bloc', 'A Bloc', 'täffä',
-    'kaivopiha'). `date` defaults to today (Europe/Helsinki) and accepts 'today', 'tomorrow',
-    'yesterday', an English or Finnish weekday name (next occurrence, e.g. 'friday' or
-    'perjantai') or an ISO date 'YYYY-MM-DD'. `lang` is 'en' (default) or 'fi', the language of
+    Dishes are returned without nutrition values (component names are kept); use get_full_menu
+    for macros, or get_macros for one dish. `restaurant` takes an id, name or alias (e.g.
+    'a-bloc', 'A Bloc', 'täffä', 'kaivopiha'). `date` defaults to today (Europe/Helsinki) and
+    accepts 'today', 'tomorrow', 'yesterday', an English or Finnish weekday name (next
+    occurrence, e.g. 'friday' or 'perjantai') or an ISO date 'YYYY-MM-DD'. `lang` is 'en'
+    (default) or 'fi', the language of
     the dish texts. A menu with a non-null `error` could not be fetched; `macros_available` says
     whether the site publishes nutrition values for the menu.
     """
@@ -92,7 +99,8 @@ async def get_full_menu(
     defaults to today (Europe/Helsinki) and accepts 'today', 'tomorrow', 'yesterday', an English
     or Finnish weekday name (next occurrence, e.g. 'friday' or 'perjantai') or an ISO date
     'YYYY-MM-DD'. `lang` is 'en' (default) or 'fi'. Each dish's `macros` is null when unpublished;
-    `macros.basis` says whether values are per portion or per 100 g.
+    `macros.basis` says whether values are per portion or per 100 g. Multi-component dishes have
+    `macros` null and list the per-100 g nutrition of each part in `components` (name and macros).
     """
     return await _menus_response(restaurant, date, lang, include_macros=True)
 
@@ -106,15 +114,18 @@ async def get_macros(
     `dish` matches a dish id, its exact name, or part of its name (fuzzy matching is used too);
     if nothing matches, the error lists the available dish names. `date` defaults to today
     (Europe/Helsinki) and accepts 'today', 'tomorrow', 'yesterday', an English or Finnish weekday
-    name (next occurrence) or an ISO date 'YYYY-MM-DD'. `macros` is null when the site publishes
-    no values for the dish, and `message` then explains that.
+    name (next occurrence) or an ISO date 'YYYY-MM-DD'. `macros` is the nutrition of the dish as
+    a whole, null when the site publishes none. Multi-component dishes have `macros` null and
+    list the per-100 g nutrition of each part in `components` (name and macros; a part's macros
+    are null when unpublished). `message` explains when neither form of nutrition is published.
     """
     day = resolve_date(date)
     menu = await _service.get_menu(restaurant, day, lang)
     if menu.error:
         raise ValueError(f"Menu for {menu.restaurant_name} on {day} is unavailable: {menu.error}")
     found = _service.find_dish(menu, dish)
-    has_macros = found.macros is not None and not found.macros.is_empty()
+    has_macros = _has_values(found.macros)
+    has_component_macros = any(_has_values(c.macros) for c in found.components)
     return {
         "restaurant": menu.restaurant_id,
         "restaurant_name": menu.restaurant_name,
@@ -122,7 +133,10 @@ async def get_macros(
         "dish_id": found.id,
         "dish_name": found.name,
         "macros": found.macros.model_dump(mode="json") if has_macros else None,
-        "message": None if has_macros else "The site publishes no nutrition values for this dish.",
+        "components": [c.model_dump(mode="json") for c in found.components],
+        "message": None
+        if has_macros or has_component_macros
+        else "The site publishes no nutrition values for this dish.",
     }
 
 
@@ -142,15 +156,17 @@ async def search_dishes_by_macros(
 ) -> list[dict[str, Any]]:
     """Find dishes that match nutrition targets on one day, across one or more restaurants.
 
-    Only dishes with published macros are considered; a dish missing a value that a filter needs
-    is left out. `restaurants` takes ids, names or aliases (all restaurants when omitted).
-    `diets` are diet codes as published by the sites (e.g. 'G', 'L', 'VEG'); all of them must be
-    present. `sort_by` is one of 'protein_desc' (default), 'kcal_asc', 'kcal_desc' or
-    'protein_per_kcal_desc'. `date` defaults to today (Europe/Helsinki) and accepts 'today',
-    'tomorrow', 'yesterday', an English or Finnish weekday name (next occurrence) or an ISO date
-    'YYYY-MM-DD'. Restaurants whose menu could not be fetched are skipped. `lang` is 'en'
-    (default) or 'fi'. Each row has restaurant_id, restaurant_name, dish and macro_basis; a
-    `note` is added to every row when the results mix per-portion and per-100 g values.
+    Only dishes with published whole-dish macros are considered; a dish missing a value that a
+    filter needs is left out. Multi-component dishes (nutrition published per component) are not
+    searchable; use get_macros to see their components. `restaurants` takes ids, names or
+    aliases (all restaurants when omitted). `diets` are diet codes as published by the sites
+    (e.g. 'G', 'L', 'VEG'); all of them must be present. `sort_by` is one of 'protein_desc'
+    (default), 'kcal_asc', 'kcal_desc' or 'protein_per_kcal_desc'. `date` defaults to today
+    (Europe/Helsinki) and accepts 'today', 'tomorrow', 'yesterday', an English or Finnish weekday
+    name (next occurrence) or an ISO date 'YYYY-MM-DD'. Restaurants whose menu could not be
+    fetched are skipped. `lang` is 'en' (default) or 'fi'. Each row has restaurant_id,
+    restaurant_name, dish and macro_basis; a `note` is added to every row when the results mix
+    per-portion and per-100 g values.
     """
     day = resolve_date(date)
     menus = await _service.get_menus(restaurants, day, lang)

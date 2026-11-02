@@ -38,17 +38,18 @@ published macro values; record the `basis` (per portion vs per 100 g).
 | compass  | A Bloc, TUAS, Dipoli, Alvari | done   | `menuapi/day-menus` + `menuapi/recipes/<id>` (per 100 g macros)    |
 | sodexo   | Kvarkki, T-talo              | done   | `ruokalistat/output/daily_json/{id}/{date}` (per-component macros) |
 | kipsari  | Kipsari Väre                 | done   | `kipsari.com/rss-vare[-english]/`; no macros published; Studio has no feed |
-| taffa    | Täffä                        | later  | data only on `newapi.tf.fi/taffa/{lang}/json/week/`: host must be allowlisted |
-| menssa   | Menssa                       | later  | `menssa.fi/lounas/`: bare `menssa.fi` must be allowlisted          |
-| unicafe  | Kaivopiha                    | later  | `unicafe.fi/wp-json/swiss/v1/restaurants?lang=`: host must be allowlisted |
+| taffa    | Täffä                        | done   | `newapi.tf.fi/taffa/{fi,en}/json/week/` (current week only); no macros published |
+| menssa   | Menssa                       | done   | `menssa.fi/lounas/` HTML (current week only); no macros published; pizzas left out |
+| unicafe  | Kaivopiha                    | done   | `unicafe.fi/wp-json/swiss/v1/restaurants?lang=` (~1 MB, all restaurants, cached); per 100 g macros |
 
 Provider ids were taken from Kanttiinit's restaurant list
 (`https://kitchen.kanttiinit.fi/restaurants`), which records each restaurant's upstream feed.
-Kanttiinit itself (`/menus?restaurants=<id>&days=<date>`) is reachable and serves menus without
-macros for the blocked restaurants (Täffä 3, Menssa 84, Kaivopiha 12): a possible stop-gap.
+Hosts the server needs: www.compass-group.fi, www.sodexo.fi, www.kipsari.com, newapi.tf.fi,
+menssa.fi, unicafe.fi.
 
-## Next steps
+## Next steps (optional)
 
-1. Allowlist `newapi.tf.fi`, `menssa.fi` and `unicafe.fi`, then implement the three remaining
-   adapters the same way (live research, fixtures, offline + live tests).
-2. Optional: cache Compass recipe nutrition across days (recipes are static) to cut requests.
+1. Cache Compass recipe nutrition across days (recipes are static) to cut requests.
+2. Unicafe dish descriptions carry full ingredient lists (up to ~2k chars); consider trimming
+   them in `get_menu` if responses get too long for the calling model.
+3. Täffä and Menssa only publish the current week; Compass, Sodexo and Unicafe accept any date.

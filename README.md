@@ -14,13 +14,11 @@ straight from each restaurant's own public feed with plain HTTP GET; no browser 
 | `alvari`            | Alvari                       | Compass Group (FoodCo)  | per 100 g                  |
 | `kvarkki`           | Aalto Kvarkki                | Sodexo                  | per 100 g, per component   |
 | `t-talo`            | Tietotekniikan talo (T-talo) | Sodexo                  | per 100 g, per component   |
+| `unicafe-kaivopiha` | Unicafe Kaivopiha            | unicafe.fi              | per 100 g                  |
 | `kipsari`           | Kipsari Väre                 | kipsari.com RSS         | not published              |
-| `taffa`             | Täffä                        | newapi.tf.fi            | pending (host not allowed) |
-| `menssa`            | Menssa                       | menssa.fi               | pending (host not allowed) |
-| `unicafe-kaivopiha` | Unicafe Kaivopiha            | unicafe.fi              | pending (host not allowed) |
+| `taffa`             | Täffä                        | newapi.tf.fi            | not published              |
+| `menssa`            | Menssa                       | menssa.fi               | not published              |
 
-"Pending" restaurants are registered but return an error until their adapter is implemented;
-the data hosts were unreachable from the development environment (see `docs/PLAN.md`).
 Restaurant arguments accept the id, the name or an alias, ignoring case and accents
 (`"A Block"`, `"täffä"`, `"väre"`, `"kaivopiha"`).
 
@@ -38,7 +36,7 @@ Common arguments: `date` defaults to today in Europe/Helsinki and accepts `today
 `yesterday`, an English or Finnish weekday (`friday`, `perjantai` = next occurrence) or an ISO
 date. `lang` is `en` (default) or `fi`; a site without English falls back to Finnish with a note.
 
-Nutrition is reported exactly as published. Compass and Sodexo publish values per 100 g
+Nutrition is reported exactly as published. Compass, Sodexo and Unicafe publish values per 100 g
 (`macros.basis = "100g"`) without portion weights, so they compare dishes but are not
 per-portion totals. Results are cached in memory for 30 minutes (2 minutes for failures).
 

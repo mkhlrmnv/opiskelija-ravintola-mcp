@@ -117,6 +117,17 @@ async def test_missing_english_feed_falls_back_to_finnish() -> None:
     assert any("English" in note for note in menu.notes)
 
 
+async def test_malformed_english_feed_falls_back_to_finnish() -> None:
+    # Seen live: the English feed briefly served XML that did not parse.
+    broken = EN_FEED[: len(EN_FEED) // 2]
+    menu = await _menu({FI_URL: FI_FEED, EN_URL: broken}, MONDAY, lang="en")
+
+    assert menu.error is None
+    assert menu.lang == "fi"
+    assert menu.dishes[0].name.startswith("Vihreä curry")
+    assert any("English" in note for note in menu.notes)
+
+
 async def test_day_missing_from_english_feed_falls_back_to_finnish() -> None:
     en_feed = _without_item(EN_FEED, "2026-11-02")
 

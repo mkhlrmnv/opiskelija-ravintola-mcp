@@ -46,7 +46,13 @@ class KipsariAdapter(MenuAdapter):
             sources.append(("fi", _feed_url(feed)))
 
         for menu_lang, url in sources:
-            channel = await _load_channel(client, url)
+            try:
+                channel = await _load_channel(client, url)
+            except (AdapterError, httpx.HTTPError):
+                # A broken English feed should not hide the Finnish menu; the fi feed must work.
+                if menu_lang == "fi":
+                    raise
+                continue
             if channel is None:
                 if menu_lang == "fi":
                     raise AdapterError(f"Kipsari menu feed not found: {url}")

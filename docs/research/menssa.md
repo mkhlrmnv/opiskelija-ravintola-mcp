@@ -1,57 +1,125 @@
 # Menssa (Otaniemi) data-source research
 
-Status: **INCOMPLETE. menssa.fi could not be reached from this session.**
-Research date: 2026-11-01.
+Status: **VERIFIED** against the live site on 2026-11-02 (Monday), via the proxy with plain HTTPS
+GET. The earlier 2026-11-01 attempt (DNS failure in the research session) is superseded.
 
-## 1. Access status (observed)
+## 1. Operator and address
 
-| Host | Method | Result |
-|---|---|---|
-| https://menssa.fi | WebFetch | `getaddrinfo ENOTFOUND menssa.fi` (DNS failure; the session reports the host is outside the allowed network domains) |
-| https://www.aalto.fi/fi/kampus/kampusravintolat-ja-kahvilat | WebFetch | `getaddrinfo ENOTFOUND www.aalto.fi` (same failure) |
-| WebSearch "menssa.fi ruokalista Otaniemi" | WebSearch | Search returned aalto.fi and kanttiinit-related pages, but **no menssa.fi page** |
-| WebSearch "Menssa Otaniemi lounas kanttiinit" | WebSearch | Same as above |
+- Footer on every page: "Copyright 2026 Menssa Lounasravintola".
+- Address on `/yhteystiedot/`: Otakaari 7 B, 02150 Espoo (Otaniemi).
+- Site stack: WordPress with the DT The7 theme. Lunch content comes from a site plugin
+  (`lms`, REST namespace `lms/v1`). No third-party menu system (Jamix, Aromi, Mealdoo, Fazer,
+  Sodexo, Compass) appears in scripts, iframes or links.
 
-Because two hosts failed DNS resolution, I stopped fetching further sites, as the session instructions require. **To complete this research, `menssa.fi` (and `www.aalto.fi` / `kanttiinit.fi`) must be added to the session's allowed network domains, and the research re-run.**
+## 2. How the menu is delivered
 
-Nothing below was read from menssa.fi itself. The only observations come from WebSearch result snippets, which are search-tool summaries and not verbatim page text.
+- `https://menssa.fi/lounas/` is **server-rendered HTML**. A plain GET returns the full week
+  (about 84 KB, mostly CSS and JS). No JavaScript is needed. Adapter: `adapters/menssa.py`.
+- Markup used by the adapter (plugin classes, all present on the page):
+  - `section` per weekday: `h3` with the Finnish weekday name ("Maanantai"), a date line
+    `d.m.` without a year ("2.11.").
+  - Per dish: `.lms-front-dish-name` (Finnish), `.lms-front-en-name` (English),
+    `.lms-front-allergens` and `.lms-front-dietary` (codes), `.lms-front-price` (always empty).
+  - Pizza table: `.lms-pizza-row` with `.lms-pizza-name`, `.lms-pizza-desc`, and two
+    `.lms-pizza-price` columns (student, normal).
+  - Prices: `.lms-site-price-card` (`h4` title, rows labelled "Opiskelijat / Students").
+- The WordPress page `/wp-json/wp/v2/pages/1100` (slug `lounas`) has **empty content**: the
+  menu is not stored in the post body, so the page REST endpoint is useless for menus.
+- `GET /wp-json/lms/v1/lunch/today` returns JSON for the day (`name_fi`, `name_en`,
+  `allergens`, `dietary`, `price`, `display` prices, `footer`). It **ignores any date parameter**
+  (`?date=2026-11-04` and `?day=` still return Monday 2 Nov). It holds no nutrition. Verified
+  identical to the HTML for Monday (fixture `lms-lunch-today-2026-11-02.json`). Not used by the
+  adapter because it cannot serve other days. `/wp-json/lms/v1/lunch/week` is 404.
+- `/wp-json/menssa-tv/v1/lunch` returns the same data for a TV display (same limitation).
 
-## 2. What was observed (secondary sources, via search snippets only)
+## 3. Dates and weeks
 
-- Menssa is listed as a student restaurant at **Otakaari 7, Otaniemi** on Aalto's campus restaurant list (Finnish and English versions).
-- That list says a **student-priced meal is available 1.6.–23.8.** This is a summer window. Today is 2026-11-01, so that price window is over and should not be assumed to apply now.
-- Aalto's page says the most current details (opening hours, meal prices, lunch menus) are on **each restaurant's own website**.
-- Aalto's page names **kanttiinit.fi** as a site that compiles the day's menus for the campus student restaurants. Whether Menssa is included there is **UNVERIFIED**.
-- Aalto's June 2026 campus map (`https://www.aalto.fi/sites/default/files/2026-06/16.6.26-Otaniemi_kampuskartta_kampuskarta.pdf`) lists Menssa among the student restaurants. An older 2025 map gives it as "Menssa 29 A3".
-- Other campus lunch places mentioned in the same snippets (not Menssa): Factory Otaniemi (weekday 10:30–14:00 per snippet), Fat Lizard, MOO, MAU-KAS, Bliss, Tasteat, Subway T-talo.
+- The page lists **one Monday-Friday week**, the current one (on 2026-11-02: 2.11.-6.11.).
+  There is no date parameter and no week selector. Week title "Week 4" appears only in the JSON.
+- Days outside the shown week (for example Sunday 2026-11-08, or Monday 2026-11-09 before it is
+  published) produce no section, so the adapter returns empty dishes and a note. The adapter
+  matches the date line `d.m.` against the requested day and uses the requested year.
+- Opening hours are Monday-Saturday 11:00-19:00, Sunday by agreement (from `/yhteystiedot/`).
+  These are restaurant hours, not lunch hours, so `lunch_hours` stays None.
 
-## 3. Items the task asked for, all still open
+## 4. Language
 
-1. **Operator and delivery mechanism (menssa.fi):** NOT OBSERVED. Whether the page is server-rendered HTML, a JSON API, or an embedded third-party system (Jamix, Aromi, Mealdoo, Compass/Sodexo, etc.) cannot be determined. No script, iframe or API URLs were inspected.
-2. **Date selection (current week only vs. date parameter):** NOT OBSERVED.
-3. **Structure (dish names, diet codes, prices, fi/en versions):** NOT OBSERVED. No sample HTML or JSON was obtained, so none is included.
-4. **Macros / nutrition:** NOT OBSERVED. Nothing is known about whether Menssa's system exposes kcal, protein, carbs, fat, fibre, salt, sugar or saturated fat. Do not assume any of these exist.
-5. **Plain GET vs. JS rendering (Playwright):** NOT DETERMINED.
-6. **Lunch hours:** NOT FOUND for Menssa. The only hours seen were for other restaurants (Factory 10:30–14:00).
+- English is on the **same page**: every daily dish has a `.lms-front-en-name`. Monday's six
+  dishes all have English names.
+- There is no English URL: `/en/` (404), `/en/lounas/` (301 to `/lounas/`), `/lounas/?lang=en`
+  (same Finnish page, query ignored). The `<html>` tag is `lang="fi"`.
+- Pizza names and descriptions are Finnish only (for example "jauhelihakastike"). Pizza names
+  are language-neutral, so no fallback note is raised for them.
 
-## 4. Suggested next steps (once hosts are allowed)
+## 5. Diet codes and allergens
 
-1. WebFetch `https://menssa.fi` with a prompt asking for every `<script src>`, `<iframe src>`, and every URL or API path in the HTML, verbatim. Look for references to known lunch systems (`jamix`, `aromi`, `mealdoo`, `compass`, `sodexo`, `fazer`) in those URLs.
-2. Fetch `https://www.aalto.fi/fi/kampus/kampusravintolat-ja-kahvilat` and `https://www.aalto.fi/en/campus/campus-restaurants-and-cafes` to confirm the Menssa entry text, hours, and any menu link.
-3. Fetch the kanttiinit.fi site and check whether Menssa is listed, its menu URL pattern, and whether it exposes a JSON endpoint. Do not assume the slug or endpoint.
-4. If the menssa.fi page is JS-rendered, check the network calls it makes before considering Playwright. Playwright is the last resort.
+Legend on `https://menssa.fi/menu/` (not on `/lounas/`):
 
-## 5. Gotchas to watch for
+- Diets: G = gluten-free, L = lactose-free, M = milk-free, VL = low lactose.
+- Allergen markers: K (egg), KA (fish), PA (sweet pepper), PÄ (nuts), SE (celery), SI (mustard),
+  SM (sesame), SO (soya), VS (garlic).
+- Published on the lunch list: "G" (16 dishes), "L, G" (6 dishes), "L" (1), and the `dietary`
+  span "vegan, S" (12 dishes). "S" is **not** in the legend, so its meaning is unknown. The adapter
+  keeps it as published in `diets`.
+- The adapter puts codes from the allergen list into `allergens` and every other code into `diets`.
+  No allergen-marker code is published on the lunch list today.
+- "KAIKKI RUOKAMME OVAT LAKTOOSITTOMIA!" ("all our food is lactose-free") appears on `/menu/`.
+  This is a general claim and is not used in the data.
 
-- The student-price window noted by Aalto (1.6.–23.8.) is stale for the current date.
-- Aalto explicitly says the restaurant websites, not the aalto.fi pages, are authoritative for menus and hours.
-- Search snippets are not page content. Any field name, endpoint, or hour quoted in a snippet must be confirmed against the live page before use.
+## 6. Prices
 
-## 6. Unverified / needs in-container check
+- Per-dish price cells are **empty**. Prices are per lunch type on `/lounas/`:
+  - NORMAL LUNCH (main course, soup, salad, bread): staff 10,00 EUR, **students 5,90 EUR**,
+    guests 12,00 EUR.
+  - SOUP LUNCH (soup, salad, bread): staff 7,90 EUR, **students 3,20 EUR**, guests 9,40 EUR.
+- Pizzas: student 5,90 EUR, normal 11,00 EUR (Fantasia 3: 6,90 / 12,00).
+- The adapter puts pizza prices in `Dish.price` as "5,90 € (opiskelija) / 11,00 € (norm.)" and
+  lunch-type student prices in a menu note, since the page does not say which dish is which.
+- The lunch footer from the JSON ("Lounaaseen kuuluu alkusalaatti, vesi ja kahvi / tee", i.e.
+  starter salad, water and coffee/tea included) is not on the HTML page. Not used.
 
-- Everything in section 3 (all Menssa-specific facts) is UNVERIFIED because menssa.fi was not reachable.
-- Whether Menssa is included in kanttiinit.fi: UNVERIFIED.
-- Operator of Menssa (the organisation running it): UNVERIFIED.
-- Lunch hours for Menssa: UNVERIFIED.
-- Any JSON API, diet codes, price structure, or nutrition fields: UNVERIFIED, none observed.
-- Access requirement: `menssa.fi` and `www.aalto.fi` must be allowed in the session's network settings before this research can be completed.
+## 7. Nutrition / macros
+
+- **None published.** The lunch page, the pizza table, the `/menu/` page, and the JSON endpoints
+  contain no kcal, protein, carbohydrate, fat, fibre, salt or sugar values. A search of the
+  page for "kcal", "proteiin", "ravintoarvo", "nutri" found nothing.
+- Therefore `Macros` stays None for every dish and `macros_available` is False.
+
+## 8. Standing items
+
+- Each published day lists the same standing items: "JASMIN RIISI" (rice), "Kasvikset"
+  (vegetables), "ERIKOIS SALAATTIPÖYTÄ" (special salad table), plus the 12 pizzas from the
+  `/lounas/` pizza table. The adapter includes them as dishes (category "Pizza" for pizzas).
+
+## 9. Live result, 2026-11-02 (Monday)
+
+- Lunch dishes: 6 (Herkkusieni keitto, Mexican kanaa, Soya Bolognese, JASMIN RIISI,
+  Kasvikset, ERIKOIS SALAATTIPÖYTÄ). Pizzas: 12. Total: 18 dishes.
+- Macros published: no. Notes: student-price note only.
+
+## 10. Fixtures
+
+- `tests/fixtures/menssa/lounas-2026-11-02.html`: the lunch wrapper, the price block and the
+  pizza table from `/lounas/`, unchanged, with the rest of the page removed (about 14 KB).
+- `tests/fixtures/menssa/lms-lunch-today-2026-11-02.json`: the `lms/v1/lunch/today` response
+  for the same day. Used to cross-check names and codes.
+
+## 11. Gotchas
+
+- The date line has no year; the adapter takes the requested day's year.
+- A weekday heading without a date line never matches (fails closed to an empty menu).
+- If the lunch list is missing entirely (no weekday headings), the adapter raises `AdapterError`
+  so the layout change is visible, instead of returning an empty menu.
+- Diet codes are published as text and some are in the wrong span: "G" and "L" appear in
+  `.lms-front-allergens`, but per the legend they are diets. The adapter sorts them by legend.
+- The `/menu/` legend and the `/lounas/` data can drift; re-check the legend when a new code
+  appears.
+
+## 12. Registry and shared-file changes (not made here)
+
+- `src/ravintola_mcp/adapters/__init__.py`: import `MenssaAdapter` from
+  `ravintola_mcp.adapters.menssa` and add it to `ADAPTERS` (keyed by `provider = "menssa"`).
+- `src/ravintola_mcp/restaurants.py`: the Menssa entry (`provider="menssa"`,
+  `url="https://menssa.fi"`) already exists. Optionally set `url="https://menssa.fi/lounas/"` so
+  the public menu page is the restaurant URL. The adapter fetches `/lounas/` regardless.
+  Aliases could include "menssa lounasravintola" if wanted.

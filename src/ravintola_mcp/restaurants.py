@@ -53,7 +53,7 @@ RESTAURANTS: list[Restaurant] = [
         aliases=[],
         campus="Otaniemi",
         provider="menssa",
-        url="https://menssa.fi",
+        url="https://menssa.fi/lounas/",
     ),
     Restaurant(
         id="kvarkki",

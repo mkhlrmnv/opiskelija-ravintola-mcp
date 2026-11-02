@@ -5,10 +5,19 @@ from __future__ import annotations
 from ravintola_mcp.adapters.base import MenuAdapter
 from ravintola_mcp.adapters.compass import CompassAdapter
 from ravintola_mcp.adapters.kipsari import KipsariAdapter
+from ravintola_mcp.adapters.menssa import MenssaAdapter
 from ravintola_mcp.adapters.sodexo import SodexoAdapter
+from ravintola_mcp.adapters.taffa import TaffaAdapter
 
 ADAPTERS: dict[str, MenuAdapter] = {
-    adapter.provider: adapter for adapter in (CompassAdapter(), KipsariAdapter(), SodexoAdapter())
+    adapter.provider: adapter
+    for adapter in (
+        CompassAdapter(),
+        KipsariAdapter(),
+        MenssaAdapter(),
+        SodexoAdapter(),
+        TaffaAdapter(),
+    )
 }
 
 

@@ -8,6 +8,7 @@ from ravintola_mcp.adapters.kipsari import KipsariAdapter
 from ravintola_mcp.adapters.menssa import MenssaAdapter
 from ravintola_mcp.adapters.sodexo import SodexoAdapter
 from ravintola_mcp.adapters.taffa import TaffaAdapter
+from ravintola_mcp.adapters.unicafe import UnicafeAdapter
 
 ADAPTERS: dict[str, MenuAdapter] = {
     adapter.provider: adapter
@@ -17,6 +18,7 @@ ADAPTERS: dict[str, MenuAdapter] = {
         MenssaAdapter(),
         SodexoAdapter(),
         TaffaAdapter(),
+        UnicafeAdapter(),
     )
 }
 

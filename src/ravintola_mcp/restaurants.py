@@ -98,6 +98,7 @@ RESTAURANTS: list[Restaurant] = [
         campus="Helsinki city centre",
         provider="unicafe",
         url="https://menu.unicafe.fi",
+        config={"slug": "kaivopiha"},
     ),
 ]
 

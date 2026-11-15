@@ -96,6 +96,10 @@ uv run pytest -m live    # smoke tests against the real sites
 uv run ruff check . && uv run ruff format .
 ```
 
+CI (`.github/workflows/ci.yml`) runs on every pull request and every push to `main`: ruff lint
+and format checks plus the offline tests on Python 3.11–3.13, and a gitleaks scan of the full
+git history. Live tests are not run in CI.
+
 Each provider is one adapter in `src/ravintola_mcp/adapters/` implementing `MenuAdapter`;
 restaurants and their provider ids live in `src/ravintola_mcp/restaurants.py`. How each data
 source was found and what it contains is documented in `docs/research/`.

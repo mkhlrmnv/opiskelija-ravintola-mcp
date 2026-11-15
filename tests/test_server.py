@@ -62,7 +62,13 @@ def service(http_client: httpx.AsyncClient) -> Iterator[MenuService]:
 def test_list_restaurants_hides_provider_internals() -> None:
     result = server.list_restaurants()
     assert len(result) == len(RESTAURANTS)
-    assert set(result[0]) == {"id", "name", "aliases", "campus", "url"}
+    assert set(result[0]) == {"id", "name", "aliases", "campus", "operator", "url"}
+    assert all(r["operator"] for r in result)
+
+
+def test_server_instructions_carry_the_disclaimer() -> None:
+    assert server.DISCLAIMER in (server.mcp.instructions or "")
+    assert "not affiliated" in server.DISCLAIMER
 
 
 async def test_get_menu_strips_macros_and_flags_availability(service: MenuService) -> None:
@@ -142,6 +148,8 @@ async def test_get_macros_returns_values(service: MenuService) -> None:
     assert result["dish_name"] == "Kana"
     assert result["macros"]["energy_kcal"] == 600
     assert result["message"] is None
+    assert result["source"] == "Source: Compass Group Finland (FoodCo) (compass-group.fi)"
+    assert result["disclaimer"] == server.DISCLAIMER
 
 
 async def test_get_macros_explains_when_site_publishes_none(service: MenuService) -> None:

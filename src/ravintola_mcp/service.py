@@ -11,6 +11,7 @@ import difflib
 import logging
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -83,10 +84,12 @@ class MenuService:
                 spec, day, lang, f"Adapter for provider '{spec.provider}' is not implemented yet"
             )
         try:
-            return await adapter.fetch_menu(spec, day, lang, self._http())
+            menu = await adapter.fetch_menu(spec, day, lang, self._http())
         except Exception as exc:
             logger.warning("Menu fetch failed for %s on %s", spec.id, day, exc_info=True)
             return _error_menu(spec, day, lang, f"Failed to fetch menu: {_describe(exc)}")
+        menu.source = attribution(spec)
+        return menu
 
     @staticmethod
     def find_dish(menu: Menu, dish: str) -> Dish:
@@ -181,7 +184,20 @@ def _error_menu(spec: Restaurant, day: dt.date, lang: Lang, message: str) -> Men
         lang=lang,
         source_url=spec.url,
         error=message,
+        source=attribution(spec),
     )
+
+
+def attribution(spec: Restaurant) -> str | None:
+    """Credit line for the data owner, e.g. 'Source: Sodexo (sodexo.fi)'.
+
+    Sodexo's terms of use require naming it as the source; the other operators get the same.
+    """
+    if not spec.operator:
+        return None
+    host = urlsplit(spec.url).hostname or ""
+    host = host.removeprefix("www.")
+    return f"Source: {spec.operator} ({host})" if host else f"Source: {spec.operator}"
 
 
 def _describe(exc: Exception) -> str:

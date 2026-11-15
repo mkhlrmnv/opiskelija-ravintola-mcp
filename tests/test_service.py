@@ -161,3 +161,14 @@ def test_find_dish_on_menu_without_dishes_mentions_error() -> None:
     menu = make_menu("a-bloc", "A Bloc", error="Failed to fetch menu: boom")
     with pytest.raises(ValueError, match="No dishes available.*Failed to fetch menu: boom"):
         MenuService.find_dish(menu, "Lohikeitto")
+
+
+async def test_every_menu_credits_its_operator(service: MenuService) -> None:
+    menus = await service.get_menus(None, DAY, "fi")
+
+    by_id = {m.restaurant_id: m for m in menus}
+    assert by_id["a-bloc"].source == "Source: Compass Group Finland (FoodCo) (compass-group.fi)"
+    # Error menus are credited too, so the source is never lost.
+    assert by_id["kvarkki"].error is not None
+    assert by_id["kvarkki"].source == "Source: Sodexo (sodexo.fi)"
+    assert all(m.source for m in menus)

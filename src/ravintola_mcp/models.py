@@ -85,6 +85,9 @@ class Menu(BaseModel):
         description="Caveats, e.g. language fallback or 'closed'.",
     )
     error: str | None = Field(None, description="Set when fetching/parsing failed.")
+    source: str | None = Field(
+        None, description="Who publishes this data, e.g. 'Source: Sodexo (sodexo.fi)'."
+    )
 
     @property
     def macros_available(self) -> bool:
@@ -100,6 +103,9 @@ class Restaurant(BaseModel):
     aliases: list[str] = Field(default_factory=list)
     campus: str
     provider: str = Field(description="Adapter key, e.g. 'compass', 'sodexo'.")
+    operator: str | None = Field(
+        None, description="Who publishes the menu data; credited as the source in every menu."
+    )
     url: str = Field(description="Public menu page.")
     config: dict[str, str] = Field(
         default_factory=dict, description="Provider-specific ids (cost number, restaurant id...)."

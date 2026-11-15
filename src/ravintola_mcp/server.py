@@ -22,7 +22,22 @@ async def _lifespan(_app: FastMCP) -> AsyncIterator[None]:
         await _service.aclose()
 
 
-mcp = FastMCP("opiskelija-ravintola", lifespan=_lifespan)
+DISCLAIMER = (
+    "Unofficial tool, not affiliated with or endorsed by any restaurant operator. Menus, "
+    "diet codes, allergens and nutrition values are relayed as published by each operator "
+    "(credited in each menu's `source`) and may be incomplete, outdated or wrong. People with "
+    "allergies or special diets must confirm with the restaurant staff."
+)
+
+mcp = FastMCP(
+    "opiskelija-ravintola",
+    instructions=(
+        "Lunch menus and per-dish nutrition for Finnish student restaurants (Aalto Otaniemi "
+        "and Unicafe Kaivopiha). " + DISCLAIMER + " When you relay allergen or diet "
+        "information to the user, remind them to confirm it with the staff."
+    ),
+    lifespan=_lifespan,
+)
 _service = MenuService()
 
 
@@ -62,11 +77,19 @@ async def _menus_response(
 def list_restaurants() -> list[dict[str, Any]]:
     """List the supported student restaurants (Otaniemi and Helsinki city centre).
 
-    Each entry has an id, display name, aliases, campus and public menu page. The id, name or
-    any alias can be passed as the `restaurant` argument of the other tools.
+    Each entry has an id, display name, aliases, campus, the operator that publishes its menu,
+    and its public menu page. The id, name or any alias can be passed as the `restaurant`
+    argument of the other tools.
     """
     return [
-        {"id": r.id, "name": r.name, "aliases": r.aliases, "campus": r.campus, "url": r.url}
+        {
+            "id": r.id,
+            "name": r.name,
+            "aliases": r.aliases,
+            "campus": r.campus,
+            "operator": r.operator,
+            "url": r.url,
+        }
         for r in RESTAURANTS
     ]
 
@@ -137,6 +160,8 @@ async def get_macros(
         "message": None
         if has_macros or has_component_macros
         else "The site publishes no nutrition values for this dish.",
+        "source": menu.source,
+        "disclaimer": DISCLAIMER,
     }
 
 

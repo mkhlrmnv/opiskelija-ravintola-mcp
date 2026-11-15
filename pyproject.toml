@@ -3,6 +3,8 @@ name = "opiskelija-ravintola-mcp"
 version = "0.1.0"
 description = "MCP server for Finnish student restaurant lunch menus and per-dish macros"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
     "mcp>=1.9,<2",

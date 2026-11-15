@@ -4,9 +4,15 @@ MCP server (stdio) that returns lunch menus and per-dish nutrition (macros) for 
 student restaurants on the Aalto Otaniemi campus and Unicafe Kaivopiha in Helsinki. Data comes
 straight from each restaurant's own public feed with plain HTTP GET; no browser automation.
 
+> **Unofficial.** This project is not affiliated with or endorsed by Compass Group, Sodexo,
+> Unicafe, Teknologföreningen (Täffä), Menssa or Kipsari. Menus, diet codes, allergens and
+> nutrition values are relayed as each operator publishes them and may be incomplete, outdated
+> or wrong. **If you have an allergy or a special diet, always confirm with the restaurant
+> staff.**
+
 ## Restaurants
 
-| id                  | Restaurant                   | Source                  | Macros                     |
+| id                  | Restaurant                   | Data published by       | Macros                     |
 |---------------------|------------------------------|-------------------------|----------------------------|
 | `a-bloc`            | A Bloc                       | Compass Group (FoodCo)  | per 100 g                  |
 | `tuas`              | TUAS                         | Compass Group (FoodCo)  | per 100 g                  |
@@ -14,10 +20,10 @@ straight from each restaurant's own public feed with plain HTTP GET; no browser 
 | `alvari`            | Alvari                       | Compass Group (FoodCo)  | per 100 g                  |
 | `kvarkki`           | Aalto Kvarkki                | Sodexo                  | per 100 g, per component   |
 | `t-talo`            | Tietotekniikan talo (T-talo) | Sodexo                  | per 100 g, per component   |
-| `unicafe-kaivopiha` | Unicafe Kaivopiha            | unicafe.fi              | per 100 g                  |
-| `kipsari`           | Kipsari Väre                 | kipsari.com RSS         | not published              |
-| `taffa`             | Täffä                        | newapi.tf.fi            | not published              |
-| `menssa`            | Menssa                       | menssa.fi               | not published              |
+| `unicafe-kaivopiha` | Unicafe Kaivopiha            | Unicafe                 | per 100 g                  |
+| `kipsari`           | Kipsari Väre                 | Kipsari                 | not published              |
+| `taffa`             | Täffä                        | Teknologföreningen      | not published              |
+| `menssa`            | Menssa                       | Menssa                  | not published              |
 
 Restaurant arguments accept the id, the name or an alias, ignoring case and accents
 (`"A Block"`, `"täffä"`, `"väre"`, `"kaivopiha"`).
@@ -39,6 +45,19 @@ date. `lang` is `en` (default) or `fi`; a site without English falls back to Fin
 Nutrition is reported exactly as published. Compass, Sodexo and Unicafe publish values per 100 g
 (`macros.basis = "100g"`) without portion weights, so they compare dishes but are not
 per-portion totals. Results are cached in memory for 30 minutes (2 minutes for failures).
+
+## Data sources and fair use
+
+All menu data belongs to the restaurant operators listed above. Every menu returned by the
+server carries a `source` credit line (e.g. `Source: Sodexo (sodexo.fi)`) and the operator's
+`source_url`. The server is meant to run locally, for your own personal, non-commercial use: it
+fetches public pages and feeds on your machine, identifies itself with its User-Agent, and
+caches results so each site sees only a few requests. Respect the operators' terms of use. In
+particular, Compass Group and Sodexo allow only non-commercial use, so do not host this as a
+public service or use it commercially without their permission.
+
+The test fixtures in `tests/fixtures/` are synthetic: they mirror the structure of each site's
+responses with invented values and contain no data from the restaurants.
 
 ## Install and use
 
@@ -72,7 +91,7 @@ Claude Desktop (`claude_desktop_config.json`):
 ## Development
 
 ```bash
-uv run pytest            # offline tests against recorded responses in tests/fixtures/
+uv run pytest            # offline tests against synthetic fixtures in tests/fixtures/
 uv run pytest -m live    # smoke tests against the real sites
 uv run ruff check . && uv run ruff format .
 ```
@@ -80,3 +99,8 @@ uv run ruff check . && uv run ruff format .
 Each provider is one adapter in `src/ravintola_mcp/adapters/` implementing `MenuAdapter`;
 restaurants and their provider ids live in `src/ravintola_mcp/restaurants.py`. How each data
 source was found and what it contains is documented in `docs/research/`.
+
+## License
+
+The code is released under the [MIT License](LICENSE). The license covers this software only,
+not the menu data it retrieves, which remains the property of the restaurant operators.

@@ -1,4 +1,7 @@
-"""Täffä adapter tests: offline fixtures via respx, plus a live check marked ``live``."""
+"""Täffä adapter tests: offline fixtures via respx, plus a live check marked ``live``.
+
+Fixtures are synthetic: they mirror the structure of newapi.tf.fi responses with invented values.
+"""
 
 from __future__ import annotations
 
@@ -91,12 +94,12 @@ async def test_finnish_day_maps_lines_and_diet_codes() -> None:
     ]
 
     meat = menu.dishes[0]
-    assert meat.id == "lohipyorykoita-kermaviilikastike-perunamuussia"
-    assert meat.name == "Lohipyöryköitä, kermaviilikastike, perunamuussia"
+    assert meat.id == "kalapyorykat-paprikakastike-perunasosetta"
+    assert meat.name == "Kalapyörykät, paprikakastike, perunasosetta"
     assert meat.diets == []  # this line carries no codes
 
     veg = next(d for d in menu.dishes if d.category == "Kasvisruoka")
-    assert veg.name == "Kasvispyörykät, chilimajoneesi"
+    assert veg.name == "Kasvispihvit, valkosipulimajoneesi"
     assert veg.diets == ["A", "Ei sisällä pähkinöitä", "G", "KM", "M", "Soijaton", "Veg"]
 
 
@@ -126,12 +129,12 @@ async def test_english_names_and_categories_with_finnish_diet_codes() -> None:
     ]
 
     pancake = next(d for d in menu.dishes if d.category == "Pastry")
-    assert pancake.id == "pancake"
-    assert pancake.name == "Pancake"
+    assert pancake.id == "quark-pancake"
+    assert pancake.name == "Quark pancake"
     assert pancake.diets == ["Ei sisällä pähkinöitä", "L", "Soijaton"]
 
     pea_soup = next(d for d in menu.dishes if d.category == "Soup")
-    assert pea_soup.name == "Pea soup (also vegan)"  # the parenthesis is part of the name
+    assert pea_soup.name == "Lentil soup (also vegan)"  # the parenthesis is part of the name
     assert pea_soup.diets == ["A", "Ei sisällä pähkinöitä", "G", "KM", "M", "Soijaton"]
 
 
@@ -139,7 +142,7 @@ async def test_unnamed_english_dish_falls_back_to_finnish_name() -> None:
     menu = await _fetch(FRIDAY, "en")
 
     dish = next(d for d in menu.dishes if d.category == "Fish/meat")
-    assert dish.name == "Dukkah-broileri"
+    assert dish.name == "Yrttibroileri"
     assert dish.diets == ["G", "L", "M"]
     assert menu.notes == ["English names are missing for 1 dish(es); Finnish shown for those."]
 
@@ -195,11 +198,11 @@ async def test_dish_ids_are_slugs_made_unique_within_the_day() -> None:
 
 
 async def test_parenthesis_without_diet_codes_stays_in_the_name() -> None:
-    day = {"day": "2026-11-02", "dayName": "Maanantai", "Keitto": "Hernekeitto (myös vegaani)"}
+    day = {"day": "2026-11-02", "dayName": "Maanantai", "Keitto": "Linssikeitto (myös vegaani)"}
 
     menu = await _fetch(MONDAY, "fi", fi=[day])
 
-    assert menu.dishes[0].name == "Hernekeitto (myös vegaani)"
+    assert menu.dishes[0].name == "Linssikeitto (myös vegaani)"
     assert menu.dishes[0].diets == []
 
 

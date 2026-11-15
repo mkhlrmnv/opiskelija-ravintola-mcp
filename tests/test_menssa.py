@@ -1,4 +1,7 @@
-"""Menssa adapter tests: offline parsing of a saved lunch page, plus one live check (-m live)."""
+"""Menssa adapter tests: offline parsing of a saved lunch page, plus one live check (-m live).
+
+Fixtures are synthetic: they mirror the structure of menssa.fi responses with invented values.
+"""
 
 from __future__ import annotations
 
@@ -25,12 +28,12 @@ FRIDAY = dt.date(2026, 11, 6)
 SUNDAY = dt.date(2026, 11, 8)
 NEXT_MONDAY = dt.date(2026, 11, 9)
 MONDAY_DAILY = [
-    "Herkkusieni keitto",
-    "Mexican kanaa",
-    "Soya Bolognese",
-    "JASMIN RIISI",
-    "Kasvikset",
-    "ERIKOIS SALAATTIPÖYTÄ",
+    "Kurkkukeitto",
+    "Paprikakanaa",
+    "Kasvispataa",
+    "YRTTIRIISI",
+    "Juurekset",
+    "SALAATTIBAARI",
 ]
 
 
@@ -76,7 +79,7 @@ async def test_monday_lunch_list_without_pizzas() -> None:
 async def test_monday_dish_fields_are_mapped() -> None:
     menu = await _fetch(MONDAY)
 
-    soup_dish = next(d for d in menu.dishes if d.id == "herkkusieni-keitto")
+    soup_dish = next(d for d in menu.dishes if d.id == "kurkkukeitto")
     assert soup_dish.diets == ["G"]
     assert soup_dish.allergens == []
     assert soup_dish.category is None
@@ -84,10 +87,10 @@ async def test_monday_dish_fields_are_mapped() -> None:
     assert soup_dish.macros is None
     assert soup_dish.components == []
 
-    mexican = next(d for d in menu.dishes if d.id == "mexican-kanaa")
+    mexican = next(d for d in menu.dishes if d.id == "paprikakanaa")
     assert mexican.diets == ["L", "G"]
 
-    rice = next(d for d in menu.dishes if d.id == "jasmin-riisi")
+    rice = next(d for d in menu.dishes if d.id == "yrttiriisi")
     assert rice.diets == ["G", "vegan", "S"]
 
 
@@ -109,16 +112,16 @@ async def test_english_request_uses_english_names_with_same_ids() -> None:
 
     assert en.lang == "en"
     assert _daily(en) == [
-        "Mushroom soup",
-        "Mexican chicken",
-        "Soya Bolognese",
-        "JASMIN RICE",
-        "Vegetables",
-        "SPECIAL SALAD TABLE",
+        "Cucumber soup",
+        "Paprika chicken",
+        "Vegetable bean stew",
+        "HERB RICE",
+        "Root vegetables",
+        "SALAD BAR",
     ]
     assert [d.id for d in en.dishes] == [d.id for d in fi.dishes]
     assert en.notes == [
-        "Student prices as published: NORMAL LUNCH 5,90 €; SOUP LUNCH 3,20 €.",
+        "Student prices as published: DAILY MEAL 4,40 €; LIGHT MEAL 2,70 €.",
         "Pizzas are also available à la carte (see menssa.fi/lounas/).",
     ]
 
@@ -131,7 +134,7 @@ async def test_missing_english_names_fall_back_to_finnish_with_note() -> None:
     menu = await _fetch(MONDAY, "en", html=_edited(drop_two_english_names))
 
     assert menu.lang == "en"
-    assert _daily(menu)[:2] == ["Herkkusieni keitto", "Mexican kanaa"]
+    assert _daily(menu)[:2] == ["Kurkkukeitto", "Paprikakanaa"]
     assert "English names are missing for 2 dish(es); Finnish shown for those." in menu.notes
 
 
@@ -149,11 +152,11 @@ async def test_selects_the_requested_day() -> None:
 
     assert menu.date == FRIDAY
     assert _daily(menu) == [
-        "Porkkanasosekeitto",
-        "Kalaa kasviksilla",
-        "JASMIN RIISI",
-        "Kasvikset",
-        "ERIKOIS SALAATTIPÖYTÄ",
+        "Juurikeitto",
+        "Uunikala kasviksilla",
+        "YRTTIRIISI",
+        "Juurekset",
+        "SALAATTIBAARI",
     ]
     assert menu.dishes[0].diets == ["L", "G"]
 
@@ -189,8 +192,8 @@ async def test_duplicate_dish_rows_get_unique_ids() -> None:
 
     menu = await _fetch(MONDAY, html=_edited(duplicate_first_dish))
 
-    assert menu.dishes[0].id == "herkkusieni-keitto"
-    assert menu.dishes[1].id == "herkkusieni-keitto-2"
+    assert menu.dishes[0].id == "kurkkukeitto"
+    assert menu.dishes[1].id == "kurkkukeitto-2"
     ids = [d.id for d in menu.dishes]
     assert len(ids) == len(set(ids))
 
@@ -206,7 +209,7 @@ async def test_student_prices_are_noted_once() -> None:
     menu = await _fetch(MONDAY)
 
     assert [n for n in menu.notes if n.startswith("Student prices")] == [
-        "Student prices as published: NORMAL LUNCH 5,90 €; SOUP LUNCH 3,20 €."
+        "Student prices as published: DAILY MEAL 4,40 €; LIGHT MEAL 2,70 €."
     ]
 
 

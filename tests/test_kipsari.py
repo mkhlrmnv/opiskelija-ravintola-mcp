@@ -1,4 +1,7 @@
-"""Kipsari adapter: offline parsing of saved RSS feeds, plus one live check (``-m live``)."""
+"""Kipsari adapter: offline parsing of saved RSS feeds, plus one live check (``-m live``).
+
+Fixtures are synthetic: they mirror the structure of kipsari.com RSS responses with invented values.
+"""
 
 from __future__ import annotations
 
@@ -79,12 +82,12 @@ async def test_finnish_monday_menu_is_parsed() -> None:
     assert menu.source_url == FI_URL
     assert menu.notes == []
     assert [d.name for d in menu.dishes] == [
-        "Vihreä curry soijasuikaleiden kera, riisi-moniviljaseos",
-        "Salaattilounas",
-        "Leipäateria",
+        "Kevätpalkokasvicurry, riisi-moniviljaseos",
+        "Salaattiannos",
+        "Leipäannos",
     ]
     main = menu.dishes[0]
-    assert main.id == "vihrea-curry-soijasuikaleiden-kera-riisi-moniviljaseos"
+    assert main.id == "kevatpalkokasvicurry-riisi-moniviljaseos"
     assert main.diets == ["*", "VE"]
     assert main.allergens == []
     assert main.price is None
@@ -93,7 +96,7 @@ async def test_finnish_monday_menu_is_parsed() -> None:
 async def test_selects_the_requested_day() -> None:
     menu = await _menu({FI_URL: FI_FEED}, THURSDAY)
 
-    assert menu.dishes[0].name == "Pinaattiohukaiset, perunamuusia, puolukka-omenasurvos"
+    assert menu.dishes[0].name == "Porkkanaohukaiset, perunamuusia, mustikka-omenasurvos"
     assert menu.dishes[0].diets == ["*", "VE", "G"]
 
 
@@ -103,9 +106,9 @@ async def test_english_menu_comes_from_the_english_feed() -> None:
     assert menu.lang == "en"
     assert menu.source_url == EN_URL
     assert menu.notes == []
-    assert menu.dishes[0].name == "Green curry with soya stripes, rice and multi grains"
+    assert menu.dishes[0].name == "Spring legume curry, rice and multi grains"
     assert menu.dishes[0].diets == ["*", "VE"]
-    assert [d.name for d in menu.dishes[1:]] == ["Salad lunch", "Bread meal"]
+    assert [d.name for d in menu.dishes[1:]] == ["Salad portion", "Bread portion"]
 
 
 async def test_missing_english_feed_falls_back_to_finnish() -> None:
@@ -113,7 +116,7 @@ async def test_missing_english_feed_falls_back_to_finnish() -> None:
 
     assert menu.lang == "fi"
     assert menu.source_url == FI_URL
-    assert menu.dishes[0].name.startswith("Vihreä curry")
+    assert menu.dishes[0].name.startswith("Kevätpalkokasvicurry")
     assert any("English" in note for note in menu.notes)
 
 
@@ -124,7 +127,7 @@ async def test_malformed_english_feed_falls_back_to_finnish() -> None:
 
     assert menu.error is None
     assert menu.lang == "fi"
-    assert menu.dishes[0].name.startswith("Vihreä curry")
+    assert menu.dishes[0].name.startswith("Kevätpalkokasvicurry")
     assert any("English" in note for note in menu.notes)
 
 
@@ -134,7 +137,7 @@ async def test_day_missing_from_english_feed_falls_back_to_finnish() -> None:
     menu = await _menu({FI_URL: FI_FEED, EN_URL: en_feed}, MONDAY, lang="en")
 
     assert menu.lang == "fi"
-    assert menu.dishes[0].name.startswith("Vihreä curry")
+    assert menu.dishes[0].name.startswith("Kevätpalkokasvicurry")
     assert any("English" in note for note in menu.notes)
 
 

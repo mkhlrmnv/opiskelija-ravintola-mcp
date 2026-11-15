@@ -1,46 +1,45 @@
-<?xml version="1.0" encoding="utf-8"?><rss xmlns:blogChannel="http://www.kipsari.com/rss-vare/" version="2.0">
+<?xml version="1.0" encoding="utf-8"?><rss version="2.0">
 	<channel>
-		<title>Kipsari Väre</title>
-		<link>http://www.kipsari.com</link>
-		<description>Lounas – vko 45</description>
+		<title>Synthetic Lunch Menu</title>
+		<description>Lunch menu, week 45 (synthetic fixture)</description>
 		<item>
 			<title>Ma, 02.11.2026</title>
 			<description><![CDATA[
-				<span>VihreÃ¤ curry soijasuikaleiden kera, riisi-moniviljaseos (*, VE)</span>
-				<span>Salaattilounas</span>
-				<span>Leipäateria</span>
+				<span>KevÃ¤tpalkokasvicurry, riisi-moniviljaseos (*, VE)</span>
+				<span>Salaattiannos</span>
+				<span>Leipäannos</span>
 			]]></description>
 		</item>
 		<item>
 			<title>Ti, 03.11.2026</title>
 			<description><![CDATA[
-				<span>HÃ¤rkis-kasviskiusaus (*, VE, G)</span>
-				<span>Salaattilounas</span>
-				<span>Leipäateria</span>
+				<span>Mustapapu-chili, perunaa (*, VE, G)</span>
+				<span>Salaattiannos</span>
+				<span>Leipäannos</span>
 			]]></description>
 		</item>
 		<item>
 			<title>Ke, 04.11.2026</title>
 			<description><![CDATA[
-				<span>Mustapaputortillat, riisi, avokado-kaurafraichekastike (*, VE)</span>
-				<span>Salaattilounas</span>
-				<span>Leipäateria</span>
+				<span>Mustapaputortillat, riisi, avokadokastike (*, VE)</span>
+				<span>Salaattiannos</span>
+				<span>Leipäannos</span>
 			]]></description>
 		</item>
 		<item>
 			<title>To, 05.11.2026</title>
 			<description><![CDATA[
-				<span>Pinaattiohukaiset, perunamuusia, puolukka-omenasurvos (*, VE, G)</span>
-				<span>Salaattilounas</span>
-				<span>Leipäateria</span>
+				<span>Porkkanaohukaiset, perunamuusia, mustikka-omenasurvos (*, VE, G)</span>
+				<span>Salaattiannos</span>
+				<span>Leipäannos</span>
 			]]></description>
 		</item>
 		<item>
 			<title>Pe, 06.11.2026</title>
 			<description><![CDATA[
 				<span>Bataatti-pestolasagne (*, VE)</span>
-				<span>Salaattilounas</span>
-				<span>Leipäateria</span>
+				<span>Salaattiannos</span>
+				<span>Leipäannos</span>
 			]]></description>
 		</item>
 	</channel>

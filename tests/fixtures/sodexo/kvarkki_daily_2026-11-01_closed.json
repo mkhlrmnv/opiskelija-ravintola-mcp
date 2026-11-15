@@ -1,1 +1,9 @@
-{"meta":{"generated_timestamp":1793552260,"ref_url":"https:\/\/www.sodexo.fi\/ravintolat\/ravintola-aalto-kvarkki","ref_title":"Ravintola Aalto Kvarkki ","restaurant_mashie_id":"211"},"courses":[]}
+{
+  "meta": {
+    "generated_timestamp": 1700000000,
+    "ref_url": "https://example.invalid/ravintola-example",
+    "ref_title": "Example Restaurant",
+    "restaurant_mashie_id": "000"
+  },
+  "courses": []
+}

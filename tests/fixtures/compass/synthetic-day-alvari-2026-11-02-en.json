@@ -1,0 +1,6 @@
+{"dayOfWeek":"Monday","date":"2026-11-02T00:00:00","html":null,"isManualMenu":false,"menuPackages":[
+{"name":"Example soup ","price":"","meals":[{"name":"Test soup with basil\n","recipeId":40001,"diets":["*","G","ILM","L","M","Veg","VS"],"bundleId":null}],"bundles":[]},
+{"name":"Example vegetarian lunch","price":"Student 2,40 € / Staff 6,20 € / Guest 8,80 €","meals":[{"name":"Example chickpea curry","recipeId":40002,"diets":["*","A","G","L","M","Veg","VS"],"bundleId":null},{"name":"Test rice\n","recipeId":40003,"diets":["*","G","L","M","Veg"],"bundleId":null}],"bundles":[]},
+{"name":"Lunch","price":"Student 2,40 € / Staff 6,20 € / Guest 8,80 €","meals":[{"name":"Example fish 2 pcs","recipeId":40004,"diets":["*","A","ILM","L","M","VS"],"bundleId":null},{"name":"Example yoghurt sauce\n","recipeId":40005,"diets":["*","A","G","ILM","L","VS"],"bundleId":null},{"name":"Test mashed potatoes","recipeId":40006,"diets":["*","A","G","ILM","L"],"bundleId":null}],"bundles":[]},
+{"name":"Special dish (Example outlet)","price":"Student 4,90 € Staff 8,70 € Guest 10,40 €","meals":[{"name":"Test schnitzel","recipeId":40007,"diets":["A","G","L","M"],"bundleId":null},{"name":"Example sauce\n","recipeId":40008,"diets":["A","G"],"bundleId":null},{"name":"Herb potatoes","recipeId":40009,"diets":["*","G","ILM","L","M","Veg"],"bundleId":null}],"bundles":[]}
+]}

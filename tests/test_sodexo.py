@@ -1,4 +1,7 @@
-"""Sodexo adapter tests: offline fixtures via respx, plus a live check marked ``live``."""
+"""Sodexo adapter tests: offline fixtures via respx, plus a live check marked ``live``.
+
+Fixtures are synthetic: they mirror the structure of sodexo.fi responses with invented values.
+"""
 
 from __future__ import annotations
 
@@ -68,26 +71,26 @@ async def test_normal_day_maps_courses_and_macros() -> None:
     assert len(menu.dishes) == 5
     assert menu.macros_available
 
-    baguette = next(d for d in menu.dishes if d.id == "tomaatti-mozzarellapatonki")
-    assert baguette.name == "Tomaatti-mozzarellapatonki"
-    assert baguette.category == "Lounaspatonki"
+    baguette = next(d for d in menu.dishes if d.id == "tomaatti-juustopatonki")
+    assert baguette.name == "Tomaatti-juustopatonki"
+    assert baguette.category == "Patonkilounas"
     assert baguette.diets == ["G", "L"]
-    assert baguette.price == "3,10 € / 5,90 € / 5,90 €"
+    assert baguette.price == "2,50 € / 4,50 € / 4,50 €"
     assert "Maito" in baguette.allergens
     assert baguette.description is None
     assert baguette.macros is not None
     assert baguette.macros.model_dump() == {
         "basis": "100g",
         "portion_g": None,
-        "energy_kcal": 236.6,
-        "energy_kj": 989.8,
-        "protein_g": 7.32,
-        "carbohydrates_g": 28.15,
+        "energy_kcal": 239.0,
+        "energy_kj": 1000.0,
+        "protein_g": 8.0,
+        "carbohydrates_g": 30.0,
         "sugars_g": None,
-        "fat_g": 10.81,
-        "saturated_fat_g": 3.02,
-        "fibre_g": 1.3,
-        "salt_g": 0.8,
+        "fat_g": 11.0,
+        "saturated_fat_g": 3.5,
+        "fibre_g": 1.5,
+        "salt_g": 0.9,
     }
 
 
@@ -96,16 +99,16 @@ async def test_multi_component_dishes_have_no_macros_but_list_components() -> No
         KVARKKI, MONDAY, "fi", KVARKKI_FI_URL, _ok(_fixture_bytes("kvarkki_daily_2026-11-02.json"))
     )
 
-    burger = next(d for d in menu.dishes if d.id.startswith("cheese-burger"))
+    burger = next(d for d in menu.dishes if d.id.startswith("juustohampurilainen"))
     assert burger.macros is None
-    assert burger.description == "Cheese burger, Ranskalaisia perunoita"
-    assert [c.name for c in burger.components] == ["Cheese burger", "Ranskalaisia perunoita"]
+    assert burger.description == "Juustohampurilainen, Ranskalaisia perunoita"
+    assert [c.name for c in burger.components] == ["Juustohampurilainen", "Ranskalaisia perunoita"]
     assert all(c.macros is not None and c.macros.basis == "100g" for c in burger.components)
     assert burger.components[0].macros is not None
-    assert burger.components[0].macros.energy_kj == 771.52
-    assert burger.components[0].macros.fat_g == 11.45
+    assert burger.components[0].macros.energy_kj == 800.0
+    assert burger.components[0].macros.fat_g == 12.0
     assert burger.components[1].macros is not None
-    assert burger.components[1].macros.energy_kj == 637.5
+    assert burger.components[1].macros.energy_kj == 600.0
     assert any("4 multi-component" in note for note in menu.notes)
 
 
@@ -114,19 +117,19 @@ async def test_multi_component_course_keeps_recipe_order_and_per_part_values() -
         T_TALO, MONDAY, "fi", T_TALO_FI_URL, _ok(_fixture_bytes("t-talo_daily_2026-11-02.json"))
     )
 
-    dish = next(d for d in menu.dishes if any(c.name == "Paprikakastiketta" for c in d.components))
+    dish = next(d for d in menu.dishes if any(c.name == "Tomaattikastiketta" for c in d.components))
     assert dish.macros is None
     assert [c.name for c in dish.components] == [
-        "Broileripyöryköitä",
-        "Paprikakastiketta",
+        "Possupyöryköitä",
+        "Tomaattikastiketta",
         "Keitettyjä perunoita",
     ]
     sauce = dish.components[1].macros
     assert sauce is not None
     assert sauce.basis == "100g"
-    assert sauce.energy_kj == 242.4
+    assert sauce.energy_kj == 240.0
     assert sauce.protein_g == 0.6
-    assert sauce.energy_kcal == 57.9  # filled from kJ by the Macros model
+    assert sauce.energy_kcal == 57.4  # filled from kJ by the Macros model
 
 
 async def test_single_recipe_course_has_macros_and_no_components() -> None:
@@ -134,7 +137,7 @@ async def test_single_recipe_course_has_macros_and_no_components() -> None:
         T_TALO, MONDAY, "fi", T_TALO_FI_URL, _ok(_fixture_bytes("t-talo_daily_2026-11-02.json"))
     )
 
-    dessert = next(d for d in menu.dishes if d.id == "mansikkarahka")
+    dessert = next(d for d in menu.dishes if d.id == "vadelmajogurtti")
     assert dessert.macros is not None
     assert dessert.components == []
 
@@ -146,27 +149,27 @@ async def test_t_talo_dessert_has_macros_and_student_price_text() -> None:
 
     assert menu.restaurant_id == "t-talo"
     assert menu.source_url == T_TALO.url
-    dessert = next(d for d in menu.dishes if d.id == "mansikkarahka")
-    assert dessert.category == "Jälkiruoka"
-    assert dessert.price == "2,00 € / 2,00 € / 2,00 €"
+    dessert = next(d for d in menu.dishes if d.id == "vadelmajogurtti")
+    assert dessert.category == "Makeat lisukkeet"
+    assert dessert.price == "1,50 € / 1,50 € / 1,50 €"
     assert dessert.macros is not None
-    assert dessert.macros.protein_g == 6.89
-    assert dessert.macros.saturated_fat_g == 4.31
-    subway = next(d for d in menu.dishes if d.category == "Popular")
+    assert dessert.macros.protein_g == 6.5
+    assert dessert.macros.saturated_fat_g == 4.2
+    subway = next(d for d in menu.dishes if d.category == "Suosikki")
     assert subway.macros is None
 
 
 async def test_parse_macros_handles_decimal_commas_and_skips_unknown_units() -> None:
     macros = parse_macros(
-        "Energia kj/Energia kj: 420,65 kj | Proteiini/Proteiini: 2,69 proteiin | "
-        "Suola/Suola: 0,80 suola | Rauta/Rauta: 0.00 rauta | C-vitamiini/C-vitamiini: 0.00 c-vit"
+        "Energia kj/Energia kj: 312,50 kj | Proteiini/Proteiini: 3,25 proteiin | "
+        "Suola/Suola: 0,70 suola | Rauta/Rauta: 0.00 rauta | C-vitamiini/C-vitamiini: 0.00 c-vit"
     )
 
     assert macros is not None
     assert macros.basis == "100g"
-    assert macros.energy_kj == 420.65
-    assert macros.protein_g == 2.69
-    assert macros.salt_g == 0.8
+    assert macros.energy_kj == 312.5
+    assert macros.protein_g == 3.25
+    assert macros.salt_g == 0.7
     assert macros.fat_g is None
     assert parse_macros("Rauta/Rauta: 0.00 rauta | C-vitamiini/C-vitamiini: 0.00 c-vit") is None
     assert parse_macros("") is None
@@ -196,7 +199,7 @@ async def test_english_request_uses_en_path_and_english_names() -> None:
     )
 
     assert menu.lang == "en"
-    assert menu.dishes[0].name == "Soy and root vegetable Bourguignon with whole-grain oats"
+    assert menu.dishes[0].name == "Vegetable stew with brown rice"
     assert not any("English names" in note for note in menu.notes)
 
 
@@ -207,9 +210,9 @@ async def test_missing_english_names_fall_back_to_finnish_with_note() -> None:
 
     menu = await _fetch(KVARKKI, MONDAY, "en", KVARKKI_EN_URL, _ok_json(payload))
 
-    assert menu.dishes[0].name == "Soija-juures burgundia ja täysjyväkauraa"
+    assert menu.dishes[0].name == "Kasvispataa ja ruskeaa riisiä"
     assert menu.dishes[1].name == payload["courses"]["2"]["title_fi"].strip()
-    assert menu.dishes[2].name == "Cheeseburger, French fries 11:00–14:00"
+    assert menu.dishes[2].name == "Cheeseburger with french fries 11:00–14:00"
     assert "English names are missing for 2 dish(es); Finnish shown for those." in menu.notes
 
 
@@ -232,7 +235,7 @@ async def test_duplicate_titles_get_unique_ids() -> None:
 
     ids = [d.id for d in menu.dishes]
     assert len(ids) == len(set(ids)) == 6
-    assert ids[-2:] == ["tomaatti-mozzarellapatonki", "tomaatti-mozzarellapatonki-2"]
+    assert ids[-2:] == ["tomaatti-juustopatonki", "tomaatti-juustopatonki-2"]
 
 
 async def test_courses_as_list_are_treated_as_closed_day() -> None:
@@ -283,15 +286,15 @@ async def test_live_weekday_menus_for_both_restaurants() -> None:
                     break
             assert menu is not None, f"no published weekday menu for {restaurant.id} in 2 weeks"
 
-            with_macros = [d for d in menu.dishes if d.macros is not None]
-            print(f"\n{restaurant.id} {menu.date}: {len(menu.dishes)} dishes")
-            print(f"  with macros: {len(with_macros)}")
-            if with_macros:
-                print(f"  e.g. {with_macros[0].name}: {with_macros[0].macros}")
+            # Nutrition sits on the dish for single-component courses and on the components
+            # otherwise; which kind a given day has depends on the real menu.
+            published = [d.macros for d in menu.dishes if d.macros is not None] + [
+                c.macros for d in menu.dishes for c in d.components if c.macros is not None
+            ]
+            print(f"  nutrition entries (dishes + components): {len(published)}")
             assert len(menu.dishes) >= 3
-            assert with_macros, f"{restaurant.id} has no single-component dish with macros"
-            for dish in with_macros:
-                assert dish.macros is not None
-                assert dish.macros.basis == "100g"
-                assert dish.macros.energy_kj is not None and dish.macros.energy_kj > 0
-                assert dish.macros.protein_g is not None and dish.macros.protein_g >= 0
+            assert published, f"{restaurant.id} publishes no nutrition at all"
+            for macros in published:
+                assert macros.basis == "100g"
+                assert macros.energy_kj is not None and macros.energy_kj > 0
+                assert macros.protein_g is not None and macros.protein_g >= 0

@@ -1,4 +1,7 @@
-"""Unicafe adapter tests: trimmed real responses served via respx, plus a ``live`` check."""
+"""Unicafe adapter tests: fixtures served via respx, plus a ``live`` check.
+
+Fixtures are synthetic: they mirror the structure of unicafe.fi responses with invented values.
+"""
 
 from __future__ import annotations
 
@@ -35,12 +38,12 @@ KAIVOPIHA = next(r for r in RESTAURANTS if r.id == "unicafe-kaivopiha").model_co
     update={"config": {"slug": "kaivopiha"}}
 )
 VIIKUNA = Restaurant(
-    id="unicafe-viikuna",
-    name="Unicafe Viikuna",
-    campus="Otaniemi",
+    id="unicafe-testiravintola",
+    name="Unicafe Testiravintola",
+    campus="Testikampus",
     provider="unicafe",
     url="https://menu.unicafe.fi",
-    config={"slug": "viikuna"},
+    config={"slug": "testiravintola"},
 )
 
 
@@ -97,81 +100,75 @@ async def test_monday_lunch_dishes_with_macros_per_100g() -> None:
     assert menu.restaurant_name == "Unicafe Kaivopiha"
     assert menu.lang == "fi"
     assert menu.source_url == "https://menu.unicafe.fi"
-    assert menu.lunch_hours == "Ma–Pe 11:00-19:45; La 11:30-17:00; Su Suljettu"
+    assert menu.lunch_hours == "Ma–Pe 10:00-18:00; La 12:00-16:00; Su Suljettu"
     assert [d.name for d in menu.dishes] == [
-        "Seitan - Hoi Sin bowl",
-        "Maggara-harissapata",
-        "Falafel-kasvispyöryköitä, soijajugurtti tzatziki",
-        "Patonkibaari",
-        "Lihamakaronilaatikko (broileri)",
+        "Kasvisbowl testi",
+        "Kasvispyöryköitä testi",
+        "Tofupata testi",
+        "Testileipa",
+        "Broileripasta testi (broileri)",
     ]
     assert menu.notes == ["2 side dish(es) or dessert(s) left out: only lunch dishes are listed."]
 
-    seitan = menu.dishes[0]
-    assert seitan.id == "seitan-hoi-sin-bowl"
-    assert seitan.category == "Vegaanilounas"
-    assert seitan.diets == ["KELA", "Veg"]
-    assert seitan.allergens == [
-        "gluteenia sisältävät viljat",
-        "kaura",
-        "seesaminsiemenet",
-        "soijapavut",
-        "vehnä",
-    ]
-    assert seitan.price is None
-    assert seitan.components == []
-    assert seitan.description is not None and seitan.description.startswith("Gluteenitonta")
-    assert seitan.macros is not None
-    assert seitan.macros.model_dump() == {
+    bowl = menu.dishes[0]
+    assert bowl.id == "kasvisbowl-testi"
+    assert bowl.category == "Vegaanilounas"
+    assert bowl.diets == ["KELA", "Veg"]
+    assert bowl.allergens == ["kaura", "seesami", "soija"]
+    assert bowl.price is None
+    assert bowl.components == []
+    assert bowl.description is not None and bowl.description.startswith("Testikaura")
+    assert bowl.macros is not None
+    assert bowl.macros.model_dump() == {
         "basis": "100g",
         "portion_g": None,
-        "energy_kcal": 115.0,
-        "energy_kj": 481.0,
-        "protein_g": 8.2,
-        "carbohydrates_g": 12.0,
-        "sugars_g": 3.8,
-        "fat_g": 4.0,
-        "saturated_fat_g": 0.4,
-        "fibre_g": 2.3,
-        "salt_g": 0.64,
+        "energy_kcal": 120.0,
+        "energy_kj": 502.0,
+        "protein_g": 7.0,
+        "carbohydrates_g": 13.0,
+        "sugars_g": 2.5,
+        "fat_g": 4.5,
+        "saturated_fat_g": 0.6,
+        "fibre_g": 3.1,
+        "salt_g": 0.55,
     }
 
 
 async def test_dish_without_nutrition_has_no_macros() -> None:
     menu = await _menu(KAIVOPIHA, MONDAY, "fi")
 
-    baguette = next(d for d in menu.dishes if d.name == "Patonkibaari")
-    assert baguette.macros is None
-    assert baguette.category == "Lounas"
+    testileipa = next(d for d in menu.dishes if d.name == "Testileipa")
+    assert testileipa.macros is None
+    assert testileipa.category == "Lounas"
     assert menu.macros_available
 
 
 async def test_sugars_published_as_upper_bound_are_not_stored() -> None:
     menu = await _menu(KAIVOPIHA, MONDAY, "fi")
 
-    lihamakaroni = next(d for d in menu.dishes if d.name.startswith("Lihamakaroni"))
-    assert lihamakaroni.macros is not None
-    assert lihamakaroni.macros.sugars_g is None  # the site shows "<0,5g"
-    assert lihamakaroni.macros.fat_g == 3.4
-    assert lihamakaroni.diets == ["KELA", "L"]
+    pasta = next(d for d in menu.dishes if d.name.startswith("Broileripasta"))
+    assert pasta.macros is not None
+    assert pasta.macros.sugars_g is None  # the feed shows "<0,5g"
+    assert pasta.macros.fat_g == 3.6
+    assert pasta.diets == ["KELA", "L"]
 
 
 def test_parse_nutrition_finnish_and_english_labels_agree() -> None:
     finnish = (
-        "Energia 481kJ, energia 115kcal, rasva 4,0g, josta tyydyttynyttä rasvaa 0,4g, "
-        "hiilihydraatit 12g, josta sokereita 3,8g, proteiini 8,2g, suola 0,64g, "
-        "ravintokuitua 2,3g, laktoosia 0g."
+        "Energia 502kJ, energia 120kcal, rasva 4,5g, josta tyydyttynyttä rasvaa 0,6g, "
+        "hiilihydraatit 13g, josta sokereita 2,5g, proteiini 7,0g, suola 0,55g, "
+        "ravintokuitua 3,1g, laktoosia 0g."
     )
     english = (
-        "Energy 481kJ, energy 115kcal, fat 4.0g, of which saturated fat 0.4g, carbohydrate 12g, "
-        "of which sugars 3.8g, protein 8.2g, salt 0.64g, fibre 2.3g, lactose 0g."
+        "Energy 502kJ, energy 120kcal, fat 4.5g, of which saturated fat 0.6g, carbohydrate 13g, "
+        "of which sugars 2.5g, protein 7.0g, salt 0.55g, fibre 3.1g, lactose 0g."
     )
     expected = parse_nutrition(finnish)
     assert expected == parse_nutrition(english)
     assert expected is not None
     assert expected.basis == "100g"
-    assert expected.energy_kj == 481.0
-    assert expected.saturated_fat_g == 0.4
+    assert expected.energy_kj == 502.0
+    assert expected.saturated_fat_g == 0.6
 
 
 def test_parse_nutrition_fills_missing_energy_unit_and_skips_junk() -> None:
@@ -198,9 +195,9 @@ async def test_english_menu_uses_english_names_and_same_macros() -> None:
 
     assert menu.lang == "en"
     assert menu.notes == finnish.notes
-    assert menu.lunch_hours == "Mon–Fri 11:00-19:45; Sat 11:30-17:00; Sun Closed"
-    assert menu.dishes[0].name == "Seitan & Hoi sin bowl"
-    assert menu.dishes[0].allergens[0] == "cereals containing gluten"
+    assert menu.lunch_hours == "Mon–Fri 10:00-18:00; Sat 12:00-16:00; Sun Closed"
+    assert menu.dishes[0].name == "Vegetable bowl test"
+    assert menu.dishes[0].allergens[0] == "oat"
     assert menu.dishes[0].macros == finnish.dishes[0].macros
 
 
@@ -233,12 +230,14 @@ async def test_day_outside_the_feed_gives_the_published_range() -> None:
 async def test_restaurant_selection_uses_the_configured_slug() -> None:
     menu = await _menu(VIIKUNA, MONDAY, "fi")
 
-    assert menu.restaurant_id == "unicafe-viikuna"
-    assert menu.restaurant_name == "Unicafe Viikuna"
-    assert [d.name for d in menu.dishes] == ["Pizza nyhtökaura-ananas"]
+    assert menu.restaurant_id == "unicafe-testiravintola"
+    assert menu.restaurant_name == "Unicafe Testiravintola"
+    assert [d.name for d in menu.dishes] == ["Testipizza kasviksilla"]
     assert menu.dishes[0].category == "Päivän erikoinen"
-    assert menu.notes == ["Pizzaa tarjolla klo:13.30 saakka"]  # announcement, not a dish
-    assert menu.lunch_hours == "Ma–Pe 10:30-14:00; La–Su Suljettu"
+    assert menu.notes == [
+        "Testitiedote: lounas tarjolla klo 13.30 saakka"
+    ]  # announcement, not a dish
+    assert menu.lunch_hours == "Ma–Pe 09:30-13:30; La–Su Suljettu"
 
 
 async def test_unknown_slug_raises_adapter_error() -> None:
@@ -275,7 +274,7 @@ async def test_english_feed_without_the_day_falls_back_to_finnish() -> None:
 
     assert menu.lang == "fi"
     assert menu.notes[0] == EN_FALLBACK_NOTE
-    assert menu.dishes[0].name == "Seitan - Hoi Sin bowl"
+    assert menu.dishes[0].name == "Kasvisbowl testi"
 
 
 async def test_english_feed_error_falls_back_to_finnish() -> None:
@@ -291,13 +290,13 @@ async def test_english_feed_error_falls_back_to_finnish() -> None:
 async def test_duplicate_dish_names_get_unique_ids_and_prices_are_formatted() -> None:
     payload = copy.deepcopy(_fixture("fi"))
     day = _kaivopiha_day(payload, "Ma 02.11.")
-    day["data"].append(copy.deepcopy(day["data"][3]))  # second "Patonkibaari"
+    day["data"].append(copy.deepcopy(day["data"][3]))  # second "Testileipa"
     day["data"][0]["price"] = {"value": {"student": "3.10", "graduate": "6.35"}, "name": "Lounas"}
 
     menu = await _menu(KAIVOPIHA, MONDAY, "fi", feed={"fi": payload})
 
-    assert menu.dishes[3].id == "patonkibaari"
-    assert menu.dishes[5].id == "patonkibaari-2"
+    assert menu.dishes[3].id == "testileipa"
+    assert menu.dishes[5].id == "testileipa-2"
     assert menu.dishes[0].price == "student 3.10, graduate 6.35"
 
 
